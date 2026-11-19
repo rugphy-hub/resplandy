@@ -1,0 +1,1 @@
+{"ts": "2026-11-19T12:41:29.858+08:00", "run_id": "20261119T124129-dfdadc", "event_id": 1, "agent": "harness", "step": "inventory", "type": "error", "name": "folder_refused", "input_digest": null, "output_digest": null, "tokens_in": null, "tokens_out": null, "cost_usd": null, "latency_ms": null, "verdict": null, "model": null, "lesson_ids": null, "cached": null, "detail": null}

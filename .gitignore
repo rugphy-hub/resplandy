@@ -10,7 +10,7 @@ __pycache__/
 data/cache/
 data/*.sqlite
 data/*.sqlite-*
-traces/
+/traces/
 third_party/.cache/
 
 # Papers are added locally, never committed (publishers' copyright)
