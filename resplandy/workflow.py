@@ -204,6 +204,8 @@ def _check_claim(run: Run, claim: Claim, source: Source | None, paper_checks: li
         add("code", name, passed, detail)
     quote = verify.check_quote(claim.quote, source.text, min_score=run.cfg.verification.quote_min_score)
     add("code", "quote_found", quote["found"], f"score {quote['score']:.2f}; {quote['reason']}")
+    if quote["found"]:  # keep the source's own words, so the judge and the reader never see a model's copy
+        claim.quote = quote["text"]
     missing = verify.check_numbers(claim.text, source.text)
     add("code", "numbers_in_source", not missing,
         "not in the source: " + ", ".join(missing) if missing else "every number is in the source")

@@ -43,32 +43,36 @@ def _squash(text: str) -> tuple[str, list[int]]:
 def check_quote(quote: str, source_text: str, *, min_score: float) -> dict:
     """Is the quote in the source? Case, spaces, hyphen line breaks, ligatures and punctuation are ignored.
 
-    Every letter and digit of the quote must be there, in order. The source span may hold a few extra letters
-    (score = quote length / span length, which must reach min_score) but never an extra digit: 100 is not 10.
+    Every letter and digit of the quote must be there, in order. The source span may hold a few stray single
+    letters, such as a superscript footnote mark (score = quote length / span length, which must reach
+    min_score). It may never hold two extra letters in a row, so no source word such as "not" can be skipped,
+    and never an extra digit: 100 is not 10. A found quote comes back as "text", the source's own words; that
+    text, not the model's copy, is what is stored and what the judge sees.
     """
     wanted, _ = _squash(quote)
     source, index = _squash(source_text)
 
     def result(found: bool, score: float, start: int | None, end: int | None, reason: str) -> dict:
-        return {"found": found, "score": score, "start": start, "end": end, "reason": reason}
+        text = " ".join(re.sub(r"-\s*\n\s*", "", source_text[start:end]).split()) if found else ""
+        return {"found": found, "score": score, "start": start, "end": end, "reason": reason, "text": text}
 
     if not wanted:
         return result(False, 0.0, None, None, "the quote is empty")
     at = source.find(wanted)
     if at >= 0:
         return result(True, 1.0, index[at], index[at + len(wanted) - 1] + 1, "found")
-    spare = int(len(wanted) / min_score) - len(wanted)  # extra source letters the threshold allows
+    spare = int(len(wanted) / min_score) - len(wanted)  # stray source letters the threshold allows
     for start in (i for i, char in enumerate(source) if char == wanted[0]):
-        matched = extra = 0
+        matched = extra = in_a_row = 0
         for i in range(start, len(source)):
             if source[i] == wanted[matched]:
-                matched += 1
+                matched, in_a_row = matched + 1, 0
                 if matched == len(wanted):
                     return result(True, round(len(wanted) / (i + 1 - start), 3), index[start], index[i] + 1,
-                                  "found, with extra letters in the source")
+                                  "found, with stray letters in the source")
             else:
-                extra += 1
-                if extra > spare or source[i].isdigit() or source[i] == ".":
+                extra, in_a_row = extra + 1, in_a_row + 1
+                if extra > spare or in_a_row > 1 or source[i].isdigit() or source[i] == ".":
                     break
     block = SequenceMatcher(None, wanted, source, autojunk=False).find_longest_match(0, len(wanted), 0, len(source))
     begin = max(0, block.b - block.a)

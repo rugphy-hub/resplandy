@@ -43,6 +43,19 @@ def test_one_wrong_word_fails_even_in_a_long_quote(quote):
     assert long["score"] >= 0.95  # a plain similarity threshold would have let this one through
 
 
+def test_a_skipped_source_word_never_passes(quote):
+    negated = "The sorbent did not keep its working capacity over one hundred test cycles in humid test gas."
+    dropped = "The sorbent did keep its working capacity over one hundred test cycles in humid test gas"
+    assert not quote(dropped, negated)["found"]                      # "not" may not be skipped
+    assert not quote(WANTED, FOOTNOTED.format(" no longer"))["found"]
+
+
+def test_a_found_quote_comes_back_in_the_sources_own_words(quote):
+    result = quote("KEPT a working   capacity of 3.2 mmol/g after 100 cycles")
+    assert result["text"] == "kept a working capacity of 3.2 mmol/g after 100 cycles"
+    assert quote("the uptake showed a decrease")["text"] == ""
+
+
 def test_extra_letters_are_tolerated_within_the_threshold_but_numbers_never(quote):
     assert quote(WANTED, FOOTNOTED.format("ᵃ"))["found"]       # a superscript footnote letter in the source
     assert not quote(WANTED, FOOTNOTED.format(" [12]"))["found"]    # a number in the source is never skipped

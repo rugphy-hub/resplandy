@@ -12,7 +12,7 @@ ABSTRACT_B = ("TEST ABSTRACT B. The made-up sorbent Testium-2 reached a test upt
 DRAFTS = {"claims": [
     {"source_id": "S1", "basis": "measured", "grade": "moderate",
      "text": "Testium-1 kept a working capacity of 3.2 mmol/g after 100 cycles in humid test gas.",
-     "quote": "the Testium-1 sorbent kept a working capacity of 3.2 mmol/g after 100 cycles"},
+     "quote": "THE TESTIUM-1 SORBENT kept a working capacity of 3.2 mmol/g after 100 cycles"},
     {"source_id": "S99", "basis": "unclear", "grade": "weak", "text": "An invented test claim.", "quote": "nothing"},
     {"source_id": "S2", "basis": "measured", "grade": "weak",
      "text": "Testium-2 reached 4.1 mmol/g in dry test gas.",
@@ -80,6 +80,11 @@ def test_a_literature_run_verifies_rewrites_and_fails_closed(world, lib_folder):
     assert (c4.status, c4.rewritten, c4.paper_id, c4.location, c4.abstract_only) == (
         "verified", True, "doi:10.0000/test.b", "abstract", True)
     assert c4.text == "The result suggests a role for test sites." and c1.numbers == ["1", "100", "3.2"]
+    # the stored quote is the source's own text, not the model's copy of it
+    assert c1.quote == "the Testium-1 sorbent kept a working capacity of 3.2 mmol/g after 100 cycles"
+    judged = [r["messages"][-1]["content"] for r in client.requests
+              if r["response_format"]["json_schema"]["name"] == "JudgeVerdict"]
+    assert "the Testium-1 sorbent kept" in judged[0] and "THE TESTIUM-1" not in judged[0]
 
     failed = {(c.claim_id[-2:], c.name) for c in result.checks if not c.passed}
     assert failed == {("c2", "id_in_set"), ("c3", "numbers_in_source"), ("c4", "judge_support")}
