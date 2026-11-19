@@ -54,9 +54,10 @@ def create_project(conn: Any, cfg: Config, goal: str, deadline: date | None = No
     return project
 
 
-def run_literature(cfg: Config, conn: Any, project: Project, client: Any = None) -> LiteratureResult:
+def run_literature(cfg: Config, conn: Any, project: Project, client: Any = None,
+                   kind: str = "literature") -> LiteratureResult:
     """Steps 1 to 3 for one project. It always leaves a trace and a row in runs, also when it stops early."""
-    run = start_run(cfg, kind="literature", client=client)
+    run = start_run(cfg, kind=kind, client=client)
     result = LiteratureResult(run_id=run.run_id, project_id=project.id, trace_path=run.trace.path)
     started = now(cfg).isoformat()
     _save_run(conn, run, result, started, None)

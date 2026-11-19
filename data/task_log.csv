@@ -1,8 +1,7 @@
 task_id,task,owner,type,estimate_h,started_at,done_at,comment
 M1,"Repository, config, keys, LLM client, traces",Rakchat,build,0.5,2026-11-19T11:24:00+08:00,2026-11-19T11:36:00+08:00,34 offline tests pass; live --ping passed at 12:16 (3 calls)
-M2,"Paper folder and inventory, literature workflow, verification, Literature page",Rakchat,build,2.42,2026-11-19T11:45:00+08:00,2026-11-19T12:03:00+08:00,scope cut to M2 core; live run at 12:18 verified 18 of 18 claims (31 calls); quote check hardened 12:07-12:15 after security reviews
-M3,"Gaps, Planner, Reviewer, solver, pages",Rakchat,build,1.25,2026-11-19T12:20:00+08:00,2026-11-19T12:34:00+08:00,M3 lite; solver built by a subagent 11:48-12:05; one Reviewer round; live run still to do
-M4,Tracker and check-in page,Rakchat,build,0.75,2026-11-19T11:48:00+08:00,2026-11-19T12:10:00+08:00,M4 lite built by a subagent in parallel with M2; no comment triage or notify
-M5,Learning loop and label page,Rakchat,build,0.75,,,
-M6,Evaluation suites and trace export,Evaluator,eval,0.75,,,
-M7,"README, report, slides, rehearsal",Storyteller,write,0.75,,,
+M2,"Paper folder and inventory, literature workflow, verification, Literature page",Rakchat,build,1.17,2026-11-19T11:45:00+08:00,2026-11-19T12:03:00+08:00,replanned at 11:25 to M2 core (first estimate 2.42 h); live run at 12:18 verified 18 of 18 claims (31 calls); quote check hardened 12:07-12:15 after security reviews
+M3,"Gaps, Planner, Reviewer, solver, pages",Rakchat,build,0.5,2026-11-19T12:20:00+08:00,2026-11-19T12:32:00+08:00,replanned at 11:25 to M3 lite (first estimate 1.25 h); solver built by a subagent 11:48-12:05; one Reviewer round
+M4,Tracker and check-in page,Rakchat,build,0.25,2026-11-19T11:48:00+08:00,2026-11-19T12:10:00+08:00,replanned at 11:25 to M4 lite (first estimate 0.75 h); built by a subagent in parallel with M2; no comment triage or notify
+M6,Trace export (evaluation suites L J and R cut),Evaluator,eval,0.25,2026-11-19T12:35:00+08:00,,replanned at 11:25 (first estimate 0.75 h); only Suite T runs. M5 (learning loop; first estimate 0.75 h) was cut at 11:25 and has no row
+M7,"README, report, slides, rehearsal",Storyteller,write,0.42,,,replanned at 11:25 (first estimate 0.75 h)
