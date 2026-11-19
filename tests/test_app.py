@@ -20,7 +20,7 @@ def _open(page: str) -> AppTest:
 
 def test_pages_render_before_any_study(cfg, monkeypatch):
     monkeypatch.setattr(common, "get_cfg", lambda: cfg)
-    for page in ("Study", "Literature"):
+    for page in ("Study", "Literature", "Tracker"):
         _open(page)
 
 

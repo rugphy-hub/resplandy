@@ -1,9 +1,9 @@
 """Resplandy: streamlit run app.py. Agents propose, code checks, you decide."""
 import streamlit as st
 
-from resplandy.ui import common, literature_page, study_page
+from resplandy.ui import common, literature_page, study_page, tracker_page
 
-PAGES = {"Study": study_page.render, "Literature": literature_page.render}
+PAGES = {"Study": study_page.render, "Literature": literature_page.render, "Tracker": tracker_page.render}
 
 st.set_page_config(page_title="Resplandy", layout="wide")
 cfg = common.get_cfg()
