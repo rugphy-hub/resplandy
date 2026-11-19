@@ -1,6 +1,8 @@
 # Resplandy configuration. Secrets live in .env, never here.
 # Every number below comes from docs/ARCHITECTURE.md. Change the spec and this file together.
 
+timezone: Asia/Singapore                     # every timestamp we write carries this offset (+08:00)
+
 models:
   writer: anthropic/claude-sonnet-5.5        # Lit reviewer and Planner
   reviewer: deepseek/deepseek-v4.1-flash     # other model family than the writer
@@ -8,22 +10,29 @@ models:
   fallbacks:
     writer: []                               # add one model id after checking openrouter.ai/models
     reviewer: []
+  structured_output:                         # per model id, from its page: json_schema | tool (one forced tool call)
+    anthropic/claude-sonnet-5.5: json_schema
+    deepseek/deepseek-v4.1-flash: json_schema
 
 openrouter:
   base_url: https://openrouter.ai/api/v1
   require_parameters: true                   # only endpoints that can enforce the JSON schema
+  timeout_seconds: 90
+  max_retries: 1
 
 limits:
-  max_llm_calls_per_run: 40
-  max_cost_usd_per_run: null                 # set this from the workshop key's budget before the first live run
+  max_llm_calls_per_run: 40                  # a call answered from the cache counts too
+  max_cost_usd_per_run: 1.0                  # with no cap (null) a live call is refused
   max_steps_per_agent: 6
   max_papers_per_search: 25
+  max_claims_per_run: 20                     # the judge is called once per claim
   max_gaps: 3
   reviewer_rounds: 2
   repair_rounds: 1
 
 verification:
-  mode: calibrate                            # calibrate | deployed. Only Suite J may write "deployed"
+  mode: calibrate                            # stays calibrate; code never rewrites this file. The mode in force is
+                                             # deployed only with a stored Suite J pass for this judge and rubric
   quote_min_score: 0.95
   title_min_similarity: 0.90
   year_warning_offset: 1                     # off by exactly 1 warns; off by 2 or more fails

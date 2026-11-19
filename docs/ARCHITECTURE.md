@@ -21,6 +21,33 @@ Anthony listed three references: Gibbins and Chalmers on carbon capture and stor
 
 Three decisions were added by Rakchat on 19 Nov. First, the human check of claims leaves the run: a person calibrates the judge during the build and audits it in rounds after deployment (Evaluation). Second, a learning loop carries lessons from each run into the next (Harness). Third, a study can point at a folder of papers the user already has, and the app shows what it found there before a run uses it (Tools, Literature).
 
+## Decisions on the build day (19 Nov, 11:25 +08)
+
+The presentation is at 14:30 +08, so the build has about three hours, not seven. Rakchat agreed the cut below and eight decisions that the first read of this spec raised. Where this section and an older paragraph disagree, this section wins. The older text describes the full design and stays for the report.
+
+### What is built today, and what is not
+
+| Built today | Designed, not built |
+| --- | --- |
+| M1: config, LLM client, traces, budget, state, contracts | The learning loop: lessons, the Lessons and Labels pages, audit rounds (M5) |
+| M2 core: paper folder and inventory, search, screening, quoted claims, verification, the Study and Literature pages | Suites L, J and R. Only Suite T runs. The judge is not calibrated, so every run is in `calibrate` mode and says so |
+| M3 lite: gaps with a receipt for the first gap, the claim confirm screen, the Planner's draft, one Reviewer round, the Plan page. The solver and the Schedule page are built in parallel | The DOI match for library files (every library file is an "unmatched local file", cited as file and page), links, the upload button, Telegram, `notify`, `classify_comment`, the hourly job |
+| M4 lite: the Tracker formulas (Suite T), check-ins, the Tracker page on `data/task_log.csv`, built in parallel | A second Reviewer round, and receipts for gaps 2 and 3 |
+| Trace export, README, REPORT.md | The Lit reviewer's agent loop, unless M2 finishes 10 minutes early: the literature step is a fixed pipeline first |
+
+### The eight decisions
+
+1. **Agent loop.** The outer steps are fixed and code calls the tools. `run_agent` is used in one place only, the Lit reviewer's evidence gathering (`search_library`, `read_page`, `search_literature`), and only if M2 has time. The LLM "tools" in the tables below (`write_queries`, `draft_plan` and the like) are steps: one schema-checked LLM call each.
+2. **Trace.** Every line also has `event_id` (1, 2, 3 within the run), `cached` and `detail`, a small dict of names, ids, counts and error types, never text from a paper. A digest is `sha256:<hex>`. For an `llm_call` the input digest is the LLM cache key, so the full request and reply can be opened in `data/cache/llm/<key>.json` on the machine that ran it.
+3. **Run.** A run is one pass through workflow steps 1 to 6 for one project. A replan is a new run. Runs are rows in a `runs` table. Tracker events belong to the project, not to a run.
+4. **Budget.** Every LLM call counts towards the 40, including a call answered from the cache, so a replayed run has the same shape as the live one. A cache hit costs 0. A run verifies at most `limits.max_claims_per_run` claims (20), because the judge is called once per claim.
+5. **Cost.** The cost of a call is `usage.cost` in the OpenRouter reply. OpenRouter's usage-accounting page says it is always present and needs no request parameter (checked 19 Nov). Its unit is credits, which we treat as US dollars. `limits.max_cost_usd_per_run` is 1. With no cap set, a live call is refused.
+6. **Verification mode.** `config.yaml` stays at `calibrate` and code never rewrites it. The mode in force is `deployed` only when a stored Suite J pass matches the current judge model id and the sha256 of `judge-rubric.md`. Suite J is not built today, so the mode in force is always `calibrate`.
+7. **LLM cache.** The key is a hash of the model, the fallback list, the output mode, the messages, the strict JSON schema and a salt. A suite passes the trial number as the salt, so three trials are three answers. Whether a model gets `response_format` or one forced tool call is a flag per model id, `models.structured_output` in `config.yaml`, set from the model's page. Code does not guess from an error.
+8. **State.** M1 creates the tables for everything built today, plus `runs`. A row keeps a few key columns and the validated contract as JSON in a `data` column. "Study" and "project" are the same thing.
+
+Also agreed: every timestamp we write, in traces and in `data/task_log.csv`, carries the offset of `timezone` in `config.yaml` (Asia/Singapore, +08:00). A fallback model may not come from the other side's family: `config.py` refuses a writer fallback from the judge's or the Reviewer's family, and the reverse.
+
 ## System overview
 
 The team doc shows this as a diagram, "Agents propose, code checks, you decide". The same content as text:
@@ -224,7 +251,7 @@ Learning is not an eighth step of the workflow: nothing in a run waits for it. T
 
 ### State and memory (`resplandy/state.py`, SQLite)
 
-Tables: `projects` (each with its paper folder), `library_files`, `papers`, `claims`, `checks` (code, judge and human verdicts), `gaps`, `receipts`, `plans` (versioned, with a diff to the previous version), `critiques`, `schedules`, `checkins`, `status_history`, `user_model` (k per person and per task type), `lessons`, `judge_labels`, `audit_rounds`.
+Tables: `projects` (each with its paper folder), `library_files`, `papers`, `claims`, `checks` (code, judge and human verdicts), `gaps`, `receipts`, `plans` (versioned, with a diff to the previous version), `critiques`, `schedules`, `checkins`, `status_history`, `user_model` (k per person and per task type), `lessons`, `judge_labels`, `audit_rounds`. Added on the build day: `runs`. Not created today: `lessons`, `judge_labels`, `audit_rounds`.
 
 Memory across runs is the verified papers and claims, each person's k, the approved lessons and the judge labels; the learning loop above says who writes and who reads each one. The critique ledger and the check-ins are the raw material for lessons. This is the memory the technical-execution award asks about.
 
@@ -234,10 +261,12 @@ One line per event: `ts`, `run_id`, `agent`, `step`, `type` (`llm_call`, `tool_c
 
 Every `llm_call` line also records `model`, the model that answered, and `lesson_ids`, the lessons that were loaded, so a later failure can be traced back to a lesson.
 
+Added on the build day: `event_id`, `cached` and `detail` on every line. An `llm_call` line has the verdict `valid` or `invalid` (the schema check), and a step that still fails after its repair round writes an `error` line named `needs_person`.
+
 ### Caching and demo safety
 
 - HTTP cache for OpenAlex, arXiv, Europe PMC and Crossref, keyed by URL and parameters, kept 7 days. Text extracted from library files is cached too, keyed by path, size and modification time, so a large folder is slow only once.
-- LLM cache keyed by model and prompt hash. `REPLAY=1` serves cached answers, so the demo still runs if the network or a rate limit fails.
+- LLM cache keyed by model and prompt hash, and also by the schema, the output mode, the fallback list and a trial salt. Every reply is cached, valid or not, so a replay repeats the repair round too. `REPLAY=1` serves cached answers, so the demo still runs if the network or a rate limit fails.
 - Warm both caches on the demo question in the hour before we present.
 
 ### Models (`config.yaml`)

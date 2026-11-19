@@ -14,6 +14,23 @@ Seven milestones, about 7 hours 10 minutes. One milestone at a time: plan, tests
 
 Already in the repo: `CLAUDE.md`, `docs/`, `config.yaml`, `.env.example`, `.gitignore`, `requirements.txt`, `data/gold_set.json`, `data/task_log.csv`, and `third_party/` (Tutorial 3's `research_tools` and its literature-review skill, both MIT).
 
+## Revised plan for the 14:30 +08 deadline (agreed 19 Nov, 11:25 +08)
+
+The presentation is at 14:30 +08. This table replaces the timeboxes above. The milestone sections below still describe the full build; what is cut is listed in "Decisions on the build day" in `docs/ARCHITECTURE.md`.
+
+| Order | Work | Minutes | Ends (+08) |
+| --- | --- | --- | --- |
+| M1 | Config, LLM client, traces, budget, state, every contract | 30 | 11:55 |
+| M2 core | Paper folder and inventory (no DOI match), search, screening, quoted claims, verification, Study and Literature pages, CLI | 70 | 13:05 |
+| M4 lite | Tracker formulas (Suite T), check-ins, Tracker page on `data/task_log.csv` | 15 | 13:20 |
+| M3 lite | Gaps with a receipt for the first gap, the claim confirm screen, the Planner's draft, one Reviewer round, the Plan page | 30 | 13:50 |
+| Close | Trace export, README, REPORT.md, warm caches, rehearsal with `REPLAY=1`, push | 40 | 14:30 |
+
+- There is no slack. When a timebox ends, what is left of that milestone is cut, not extended.
+- Rakchat allowed two subagents to build the pure-code parts in parallel with M2, each in its own worktree: the Tracker (M4 lite) and the solver with the Schedule page. This is an exception to "one milestone at a time".
+- M1 also covers what the eight decisions added: `event_id`, `cached` and `detail` in the trace; the `runs` table; the cache salt; cache hits counted in the budget; a refused live call when there is no cost cap; the family check on fallbacks; `models.structured_output`.
+- Timestamps in `data/task_log.csv` use +08:00.
+
 ## Before M1 (Rakchat, by hand)
 
 - `cp .env.example .env` and fill in the keys. Claude Code must not read `.env`.
