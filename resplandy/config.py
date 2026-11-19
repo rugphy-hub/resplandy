@@ -84,6 +84,10 @@ class Limits(_Section):
     max_steps_per_agent: int
     max_papers_per_search: int
     max_claims_per_run: int
+    max_queries: int
+    max_library_hits_per_query: int
+    max_library_pages_per_run: int
+    max_sources_per_run: int
     max_gaps: int
     reviewer_rounds: int
     repair_rounds: int
@@ -127,6 +131,11 @@ class Notify(_Section):
 class Apis(_Section):
     arxiv_min_interval_seconds: float
     http_cache_days: int
+    timeout_seconds: float
+
+
+class Guardrails(_Section):
+    injection_patterns: list[str]
 
 
 class Paths(_Section):
@@ -149,6 +158,7 @@ class Config(_Section):
     tracker: Tracker
     notify: Notify
     apis: Apis
+    guardrails: Guardrails
     paths: Paths
     secrets: Secrets = Field(default_factory=lambda: Secrets({}), exclude=True)
     replay: bool = False

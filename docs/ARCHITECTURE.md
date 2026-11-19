@@ -48,6 +48,17 @@ The presentation is at 14:30 +08, so the build has about three hours, not seven.
 
 Also agreed: every timestamp we write, in traces and in `data/task_log.csv`, carries the offset of `timezone` in `config.yaml` (Asia/Singapore, +08:00). A fallback model may not come from the other side's family: `config.py` refuses a writer fallback from the judge's or the Reviewer's family, and the reverse.
 
+### Agreed for M2 (19 Nov, 11:45 +08)
+
+- **`check_quote`.** A similarity of 0.95 lets one changed word through in a long quote ("increase" for "decrease" scores 0.98), so the rule is stricter. After normalising case, spaces, hyphen line breaks, ligatures and punctuation, every letter and digit of the quote must be in the source in order. The source span may hold a few extra letters (quote length over span length must reach `quote_min_score`), but never an extra digit or decimal point: 100 is not 10 and 3.2 is not 32. `difflib.SequenceMatcher` only scores a quote that failed, for the badge.
+- **The judge answers three questions**: supported, certainty kept, numbers match. A claim passes the judge only when all three are yes. No verdict (an invalid reply, a provider error) is not a yes.
+- **Claims cite a source id.** The summariser gets blocks `S1`, `S2` and so on, each one abstract or one page of a library file, and cites a block id. Code maps the id to the paper and the location, and code extracts the claim's numbers. The model never writes a paper id, a page or a number list.
+- **Ids fail closed.** A cited paper with no DOI and no arXiv id, an id the registry does not know, and a registry that cannot be reached all fail `id_resolves`. The record's year is the Crossref print year, or the `issued` year when there is none.
+- **Rewrite.** Claims that fail only `quote_found`, `numbers_in_source` or `judge_support` get one rewrite, all in one LLM call. A rewritten claim goes through the checks once more and is then verified or unverified.
+- **Folder guard.** It also refuses any folder above the home folder.
+- **Labels.** Each claim carries the model's `basis` (measured, simulated, review, unclear) and `grade` (strong, moderate, weak) from the evidence-grading rubric. Code does not check them and the page says so.
+- **Check names in the trace and on the page:** `id_in_set`, `id_resolves`, `metadata`, `quote_found`, `numbers_in_source`, `judge_support`, and `instruction_in_data` when paper text matches a pattern in `guardrails.injection_patterns`.
+
 ## System overview
 
 The team doc shows this as a diagram, "Agents propose, code checks, you decide". The same content as text:

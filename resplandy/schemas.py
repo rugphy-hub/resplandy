@@ -10,6 +10,16 @@ Page = Annotated[int, Field(ge=1)]
 Priority = Literal["must", "should", "could"]
 
 
+class Project(BaseModel):
+    """A study: the question, the deadline and the paper folder."""
+
+    id: str
+    goal: str
+    deadline: date | None = None
+    library_folder: str | None = None
+    created_at: datetime
+
+
 class Paper(BaseModel):
     """One retrieved paper: a database record, a link or a library file."""
 
@@ -37,6 +47,15 @@ class LibraryFile(BaseModel):
     paper_id: str | None = None
 
 
+class Source(BaseModel):
+    """One block of text given to the summariser: an abstract, or one page of a library file."""
+
+    id: str
+    paper_id: str
+    location: Page | Literal["abstract"]
+    text: str
+
+
 class Claim(BaseModel):
     """One statement tied to a verbatim quote from one paper. Only a verified claim is used downstream."""
 
@@ -49,6 +68,9 @@ class Claim(BaseModel):
     abstract_only: bool = False
     status: Literal["pending", "verified", "unverified"] = "pending"
     rewritten: bool = False
+    source_id: str = ""   # the block the model cited; code maps it to the paper and the location
+    basis: str = ""       # measured, simulated, review or unclear: the model's label, not checked by code
+    grade: str = ""       # strong, moderate or weak: the model's label, not checked by code
 
 
 class Check(BaseModel):

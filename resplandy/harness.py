@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -96,18 +97,34 @@ class Trace:
 
 @dataclass
 class Run:
-    """One run: its id, its config, its trace and its budget."""
+    """One run: its id, its config, its trace and its budget. client replaces the OpenRouter client in tests."""
 
     run_id: str
     cfg: Config
     trace: Trace
     budget: Budget
     kind: str = "full"
+    client: Any = None
 
 
-def start_run(cfg: Config, kind: str = "full") -> Run:
+def start_run(cfg: Config, kind: str = "full", client: Any = None) -> Run:
     """Open a run: a new sortable id, an empty trace file and a fresh budget."""
     run_id = f"{now(cfg):%Y%m%dT%H%M%S}-{uuid.uuid4().hex[:6]}"
     trace = Trace(run_id, cfg.paths.traces, cfg.timezone)
     budget = Budget(cfg.limits.max_llm_calls_per_run, cfg.limits.max_cost_usd_per_run)
-    return Run(run_id, cfg, trace, budget, kind)
+    return Run(run_id, cfg, trace, budget, kind, client)
+
+
+def wrap_data(source_id: str, text: str) -> str:
+    """Wrap text from a paper, a file or a web page in a data tag; a closing tag inside the text is defused."""
+    safe = re.sub(r"</\s*data", "< /data", text, flags=re.IGNORECASE)
+    return f'<data id="{source_id}">\n{safe}\n</data>'
+
+
+def flag_instructions(run: Run, source_id: str, text: str, agent: str, step: str) -> list[str]:
+    """Log every configured instruction-like pattern found in data text. The text is still only data."""
+    found = [p for p in run.cfg.guardrails.injection_patterns if re.search(p, text, flags=re.IGNORECASE)]
+    if found:
+        run.trace.event(type="check", name="instruction_in_data", agent=agent, step=step, verdict="flagged",
+                        detail={"source_id": source_id, "patterns": found})
+    return found

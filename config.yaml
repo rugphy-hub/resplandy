@@ -26,6 +26,10 @@ limits:
   max_steps_per_agent: 6
   max_papers_per_search: 25
   max_claims_per_run: 20                     # the judge is called once per claim
+  max_queries: 4                             # keyword queries per question
+  max_library_hits_per_query: 5
+  max_library_pages_per_run: 6               # full pages of library files given to the summariser
+  max_sources_per_run: 16                    # library pages plus abstracts given to the summariser
   max_gaps: 3
   reviewer_rounds: 2
   repair_rounds: 1
@@ -74,6 +78,15 @@ notify:
 apis:
   arxiv_min_interval_seconds: 3
   http_cache_days: 7
+  timeout_seconds: 20
+
+guardrails:
+  injection_patterns:                        # found in paper text: logged in the trace; the text stays data
+    - "ignore (all |any |the )?(previous|prior|above|earlier) instructions"
+    - "disregard (all |any |the )?(previous|prior|above|earlier)"
+    - "you are now"
+    - "system prompt"
+    - "new instructions:"
 
 paths:
   database: data/resplandy.sqlite

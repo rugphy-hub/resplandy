@@ -1,6 +1,6 @@
 task_id,task,owner,type,estimate_h,started_at,done_at,comment
 M1,"Repository, config, keys, LLM client, traces",Rakchat,build,0.5,2026-11-19T11:24:00+08:00,2026-11-19T11:36:00+08:00,34 offline tests pass; live --ping still to run
-M2,"Paper folder and inventory, literature workflow, verification, Literature page",Rakchat,build,2.42,,,
+M2,"Paper folder and inventory, literature workflow, verification, Literature page",Rakchat,build,2.42,2026-11-19T11:45:00+08:00,2026-11-19T12:05:00+08:00,scope cut to M2 core; 63 offline tests pass; live run still to do
 M3,"Gaps, Planner, Reviewer, solver, pages",Rakchat,build,1.25,,,
 M4,Tracker and check-in page,Rakchat,build,0.75,,,
 M5,Learning loop and label page,Rakchat,build,0.75,,,

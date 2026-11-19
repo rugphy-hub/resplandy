@@ -106,7 +106,8 @@ def complete_json(role: str, messages: list[dict], schema: type[T], *, run: Run,
         else:
             try:
                 run.budget.require_cost_cap()
-                answer = _request(client or _client(cfg), cfg, model, fallbacks, mode, messages, name, strict)
+                answer = _request(client or run.client or _client(cfg), cfg, model, fallbacks, mode, messages,
+                                  name, strict)
             except (ConfigError, LLMError) as err:
                 fail("provider" if isinstance(err, LLMError) else "config", err)
                 raise

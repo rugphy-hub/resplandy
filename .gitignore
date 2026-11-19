@@ -18,6 +18,7 @@ data/library/
 
 # Claude Code personal files
 .claude/settings.local.json
+.claude/worktrees/
 CLAUDE.local.md
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
