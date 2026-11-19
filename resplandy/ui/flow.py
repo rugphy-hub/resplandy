@@ -170,7 +170,11 @@ def sidebar(cfg: Config, conn: sqlite3.Connection, names: list[str]) -> str:
     steps = {step.page: step for step in workflow_status(cfg, conn, common.current_project_id(conn))}
     index = names.index(current)
     with st.sidebar:
-        st.title("Resplandy")
+        logo = common.logo()
+        if logo:  # the logo carries the name
+            st.image(logo, width="stretch", alt="Resplandy")
+        else:
+            st.title("Resplandy")
         st.caption("Research + planning + buddy")
         image = base64.b64encode(diagram(current, done_nodes(list(steps.values()))).encode("utf-8")).decode("ascii")
         st.markdown(f'<img alt="Workflow map. Current step: {current}" src="data:image/svg+xml;base64,{image}" '

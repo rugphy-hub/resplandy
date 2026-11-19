@@ -1,3 +1,5 @@
+<img src="assets/brand/resplandy-logo.png" alt="Resplandy" width="360">
+
 # Resplandy
 
 Research + planning + buddy. A multi-agent research-planning assistant, built in one day for the AgentForge hackathon (NTU Singapore, 15 to 19 November 2026).

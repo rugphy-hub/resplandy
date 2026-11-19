@@ -6,8 +6,13 @@ import sqlite3
 import streamlit as st
 
 from .. import state
-from ..config import Config, load_config
+from ..config import ROOT, Config, load_config
 from ..schemas import Project
+
+BRAND = ROOT / "assets" / "brand"  # see its README for which file is for what
+FAVICON = BRAND / "favicon-32.png"
+LOGO = BRAND / "resplandy-logo.png"          # dark text, for a light background
+LOGO_ON_DARK = BRAND / "resplandy-logo-dark-bg.png"
 
 MODE_NOTE = ("Verification mode: **calibrate**. The judge has not been calibrated (Suite J has not run), so its "
              "verdicts are provisional and a person confirms the claims behind a gap before the Planner uses them.")
@@ -24,6 +29,14 @@ def get_conn(cfg: Config) -> sqlite3.Connection:
     conn = state.connect(cfg.paths.database)
     state.init_db(conn)
     return conn
+
+
+def logo() -> str | None:
+    """The logo that suits the current theme, or None when the brand files are not there."""
+    theme = getattr(st.context, "theme", None)
+    dark = getattr(theme, "type", None) == "dark"
+    path = LOGO_ON_DARK if dark and LOGO_ON_DARK.is_file() else LOGO
+    return str(path) if path.is_file() else None
 
 
 def latest_run(conn: sqlite3.Connection, project_id: str) -> sqlite3.Row | None:

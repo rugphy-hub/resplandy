@@ -63,6 +63,11 @@ def test_status_follows_the_study_through_every_gate(world):  # noqa: F811
     assert flow.done_nodes(steps) == {"lit", "planner", "reviewer", "scheduler"}
 
 
+def test_the_brand_files_the_app_uses_are_in_the_repository():
+    assert common.FAVICON.is_file() and common.LOGO.is_file() and common.LOGO_ON_DARK.is_file()
+    assert common.FAVICON.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"      # a PNG, as the page icon expects
+
+
 def test_back_and_next_walk_the_steps(cfg, monkeypatch):
     monkeypatch.setattr(common, "get_cfg", lambda: cfg)
     app = AppTest.from_file(APP, default_timeout=30).run()

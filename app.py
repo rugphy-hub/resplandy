@@ -15,7 +15,8 @@ def schedule(cfg, conn) -> None:
 PAGES = {"Study": study_page.render, "Literature": literature_page.render, "Gaps": gaps_page.render,
          "Plan": plan_page.render, "Schedule": schedule, "Tracker": tracker_page.render}
 
-st.set_page_config(page_title="Resplandy", layout="wide")
+st.set_page_config(page_title="Resplandy", layout="wide",
+                   page_icon=str(common.FAVICON) if common.FAVICON.is_file() else None)
 cfg = common.get_cfg()
 conn = common.get_conn(cfg)
 page = flow.sidebar(cfg, conn, list(PAGES))  # the animated map, the status of each step, Back and Next
