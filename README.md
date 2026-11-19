@@ -117,4 +117,6 @@ examples/traces/        passed and failed runs
 third_party/            Tutorial 3's research_tools and literature-review skill (MIT), unchanged
 ```
 
-`third_party/` is from the AgentForge workshop and keeps its MIT licence.
+## Licence
+
+MIT: see `LICENSE`. `third_party/` is from the AgentForge workshop and keeps its own MIT licences, one in each folder.
