@@ -44,8 +44,8 @@ def pick(conn: sqlite3.Connection) -> list[dict]:
         claims = state.load(conn, "claims", Claim, run_id=row["id"])
         run = {**dict(row), "goal": goals.get(row["project_id"], ""), "claims": len(claims),
                "verified": sum(claim.status == "verified" for claim in claims)}
-        if not Path(row["trace_path"]).is_file():
-            continue
+        if not Path(row["trace_path"]).is_file() or row["kind"] == "warm_up":
+            continue  # a warm-up run passed its gates by script, so it is not an example of a person deciding
         if row["status"] == "finished" and run["verified"]:
             if run["goal"] not in seen_goals and len(passed) < PER_KIND:
                 seen_goals.add(run["goal"])

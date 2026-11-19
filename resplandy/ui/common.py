@@ -34,7 +34,8 @@ def latest_run(conn: sqlite3.Connection, project_id: str) -> sqlite3.Row | None:
 
 def pick_project(conn: sqlite3.Connection) -> Project | None:
     """Let the person pick a study, newest first; the pick is remembered across pages."""
-    induced = {row["project_id"] for row in state.rows(conn, "runs", kind="induced_failure")}
+    induced = {row["project_id"] for row in state.rows(conn, "runs")  # runs made by scripts, not by a person
+               if row["kind"] in ("induced_failure", "warm_up")}
     projects = [p for p in reversed(state.load(conn, "projects", Project)) if p.id not in induced]
     if not projects:
         st.info("No study yet. Start one on the Study page.")
