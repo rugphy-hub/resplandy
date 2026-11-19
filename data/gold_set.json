@@ -1,0 +1,52 @@
+{
+  "note": "References given by Anthony (domain expert). Metadata checked against the linked records on 19 Nov 2026. All three are broad CCS reviews; materials-specific papers are still to be added (open item 1 in docs/ARCHITECTURE.md).",
+  "papers": [
+    {
+      "key": "gibbins2008",
+      "title": "Carbon capture and storage",
+      "authors": ["Jon Gibbins", "Hannah Chalmers"],
+      "first_author_family": "Gibbins",
+      "venue": "Energy Policy",
+      "year": 2008,
+      "volume": "36",
+      "issue": "12",
+      "pages": "4317-4322",
+      "doi": null,
+      "doi_note": "Not confirmed yet. Resolve it by title through Crossref; do not type one in from memory.",
+      "given_year": 2008,
+      "record_url": "https://ideas.repec.org/a/eee/enepol/v36y2008i12p4317-4322.html",
+      "expected_check": "match"
+    },
+    {
+      "key": "boothandford2014",
+      "title": "Carbon capture and storage update",
+      "first_author_family": "Boot-Handford",
+      "venue": "Energy & Environmental Science",
+      "year": 2014,
+      "first_published_online": "2013-09-13",
+      "volume": "7",
+      "issue": "1",
+      "pages": "130-189",
+      "doi": "10.1039/C3EE42350F",
+      "given_year": 2013,
+      "record_url": "https://pubs.rsc.org/en/content/articlelanding/2014/ee/c3ee42350f",
+      "expected_check": "year warning, not a failure (online year 2013, issue year 2014)"
+    },
+    {
+      "key": "haszeldine2009",
+      "title": "Carbon Capture and Storage: How Green Can Black Be?",
+      "authors": ["R. Stuart Haszeldine"],
+      "first_author_family": "Haszeldine",
+      "venue": "Science",
+      "year": 2009,
+      "published": "2009-09-25",
+      "volume": "325",
+      "issue": "5948",
+      "pages": "1647-1652",
+      "doi": "10.1126/science.1172246",
+      "given_year": 2009,
+      "record_url": "https://www.research.ed.ac.uk/en/publications/carbon-capture-and-storage-how-green-can-black-be/",
+      "expected_check": "match"
+    }
+  ]
+}

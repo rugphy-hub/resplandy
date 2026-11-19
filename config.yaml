@@ -1,0 +1,72 @@
+# Resplandy configuration. Secrets live in .env, never here.
+# Every number below comes from docs/ARCHITECTURE.md. Change the spec and this file together.
+
+models:
+  writer: anthropic/claude-sonnet-5.5        # Lit reviewer and Planner
+  reviewer: deepseek/deepseek-v4.1-flash     # other model family than the writer
+  judge: deepseek/deepseek-v4.1-flash        # pinned: never give the judge a fallback list
+  fallbacks:
+    writer: []                               # add one model id after checking openrouter.ai/models
+    reviewer: []
+
+openrouter:
+  base_url: https://openrouter.ai/api/v1
+  require_parameters: true                   # only endpoints that can enforce the JSON schema
+
+limits:
+  max_llm_calls_per_run: 40
+  max_cost_usd_per_run: null                 # set this from the workshop key's budget before the first live run
+  max_steps_per_agent: 6
+  max_papers_per_search: 25
+  max_gaps: 3
+  reviewer_rounds: 2
+  repair_rounds: 1
+
+verification:
+  mode: calibrate                            # calibrate | deployed. Only Suite J may write "deployed"
+  quote_min_score: 0.95
+  title_min_similarity: 0.90
+  year_warning_offset: 1                     # off by exactly 1 warns; off by 2 or more fails
+  judge_gate:
+    seeded_tuning: 20
+    seeded_held_back: 60
+    max_wrong_passes: 1                      # of the 60 held-back seeded claims
+    min_label_agreement: 0.90                # 18 of the first 20 human labels
+
+audit:
+  every_runs: 10
+  sample_size: 10
+  passed_in_sample: 7                        # the other 3 are claims the judge failed
+  recalibrate_at_disagreements: 2
+
+lessons:
+  max_proposed_per_run: 3
+  min_runs_seen: 2
+  max_loaded_per_role: 5
+  roles: [lit_reviewer, planner, reviewer]   # never the judge
+
+library:
+  default_folder: data/library               # a study may point at any other folder instead
+  max_files: 500
+  doi_search_pages: 2                        # a DOI counts only with its record's title on these pages
+
+tracker:
+  spi_remind_below: 0.90
+  spi_replan_below: 0.75
+  k_min_tasks_per_type: 3
+  k_min: 0.5
+  k_max: 3.0
+  job_interval_minutes: 60
+
+notify:
+  max_per_task_per_hour: 1
+  telegram: false
+
+apis:
+  arxiv_min_interval_seconds: 3
+  http_cache_days: 7
+
+paths:
+  database: data/resplandy.sqlite
+  cache: data/cache
+  traces: traces
