@@ -24,6 +24,7 @@ CROSSREF_URL = "https://api.crossref.org/works/"
 _DOI = re.compile(r"^10\.\d{4,9}/\S+$")
 _ARXIV = re.compile(r"^(\d{4}\.\d{4,5}|[a-z\-]+(?:\.[A-Z]{2})?/\d{7})(v\d+)?$", re.IGNORECASE)
 _HYPHENS = re.compile("[-‐-―]")
+_INVISIBLE = {"Cc", "Cf", "Co", "Cn", "Cs", "Mn", "Me"}  # Unicode categories a reader cannot see
 
 
 # ---- quotes and numbers ------------------------------------------------------
@@ -40,6 +41,17 @@ def _squash(text: str) -> tuple[str, list[int]]:
     return "".join(char for char, _ in kept), [position for _, position in kept]
 
 
+def _visible(text: str) -> str:
+    """Text as a reader sees it: line-break hyphens joined, single spaces, and no invisible characters.
+
+    Format, control, private-use, unassigned and stray combining characters are dropped, so zero-width
+    characters, bidi controls and Unicode tag characters in a paper can never ride along to the judge.
+    """
+    text = unicodedata.normalize("NFC", re.sub(r"-\s*\n\s*", "", text))
+    seen = (" " if char.isspace() else char for char in text)
+    return " ".join("".join(char for char in seen if unicodedata.category(char) not in _INVISIBLE).split())
+
+
 def check_quote(quote: str, source_text: str, *, min_score: float) -> dict:
     """Is the quote in the source? Case, spaces, hyphen line breaks, ligatures and punctuation are ignored.
 
@@ -53,7 +65,10 @@ def check_quote(quote: str, source_text: str, *, min_score: float) -> dict:
     source, index = _squash(source_text)
 
     def result(found: bool, score: float, start: int | None, end: int | None, reason: str) -> dict:
-        text = " ".join(re.sub(r"-\s*\n\s*", "", source_text[start:end]).split()) if found else ""
+        text = _visible(source_text[start:end]) if found else ""
+        if found and len(_visible(quote)) < min_score * len(text):
+            # the letters match, but the source span holds far more than the quote: something sits between them
+            found, text, reason = False, "", "the source span holds much more than the quote"
         return {"found": found, "score": score, "start": start, "end": end, "reason": reason, "text": text}
 
     if not wanted:

@@ -206,6 +206,9 @@ def _check_claim(run: Run, claim: Claim, source: Source | None, paper_checks: li
     add("code", "quote_found", quote["found"], f"score {quote['score']:.2f}; {quote['reason']}")
     if quote["found"]:  # keep the source's own words, so the judge and the reader never see a model's copy
         claim.quote = quote["text"]
+        if flag_instructions(run, claim.id, claim.quote, "verifier", "verify"):
+            add("code", "instruction_in_quote", False,
+                "the quote matches an instruction pattern, so it is not given to the judge")
     missing = verify.check_numbers(claim.text, source.text)
     add("code", "numbers_in_source", not missing,
         "not in the source: " + ", ".join(missing) if missing else "every number is in the source")
