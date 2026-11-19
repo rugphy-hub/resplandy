@@ -125,13 +125,28 @@ def wrap_data(source_id: str, text: str) -> str:
 _UNSEEN = {"Cc", "Cf", "Co", "Cn", "Cs"}  # control, format, private-use, unassigned, surrogate
 
 
+def is_unseen(char: str) -> bool:
+    """A character a reader cannot see: control, format, private-use, unassigned, or an invisible mark
+    (variation selectors and the combining grapheme joiner). White space and visible accents are not unseen."""
+    code = ord(char)
+    if char.isspace():
+        return False
+    return (unicodedata.category(char) in _UNSEEN or code == 0x034F or 0x180B <= code <= 0x180F
+            or 0xFE00 <= code <= 0xFE0F or 0xE0100 <= code <= 0xE01EF)
+
+
+def drop_unseen(text: str) -> str:
+    """The text without the characters a reader cannot see."""
+    return "".join(char for char in text if not is_unseen(char))
+
+
 def readable(text: str, strip_marks: bool = False) -> str:
-    """Text as a reader takes it in: full-width and styled letters made plain (NFKC), no invisible characters,
-    single spaces. strip_marks also drops combining marks; use it for matching, never for text that is shown."""
+    """Text as a reader takes it in: no invisible characters, full-width and styled letters made plain (NFKC),
+    single spaces. strip_marks also drops visible accents; use it for matching, never for text that is shown."""
+    text = drop_unseen(text)
     if strip_marks:  # decompose first, or an accent would be composed into its letter and survive
         text = "".join(c for c in unicodedata.normalize("NFKD", text) if unicodedata.category(c) not in ("Mn", "Me"))
-    plain = (" " if char.isspace() else char for char in unicodedata.normalize("NFKC", text))
-    return " ".join("".join(char for char in plain if unicodedata.category(char) not in _UNSEEN).split())
+    return " ".join(drop_unseen(unicodedata.normalize("NFKC", text)).split())
 
 
 def flag_instructions(run: Run, source_id: str, text: str, agent: str, step: str) -> list[str]:
