@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -121,9 +122,22 @@ def wrap_data(source_id: str, text: str) -> str:
     return f'<data id="{source_id}">\n{safe}\n</data>'
 
 
+_UNSEEN = {"Cc", "Cf", "Co", "Cn", "Cs"}  # control, format, private-use, unassigned, surrogate
+
+
+def readable(text: str, strip_marks: bool = False) -> str:
+    """Text as a reader takes it in: full-width and styled letters made plain (NFKC), no invisible characters,
+    single spaces. strip_marks also drops combining marks; use it for matching, never for text that is shown."""
+    if strip_marks:  # decompose first, or an accent would be composed into its letter and survive
+        text = "".join(c for c in unicodedata.normalize("NFKD", text) if unicodedata.category(c) not in ("Mn", "Me"))
+    plain = (" " if char.isspace() else char for char in unicodedata.normalize("NFKC", text))
+    return " ".join("".join(char for char in plain if unicodedata.category(char) not in _UNSEEN).split())
+
+
 def flag_instructions(run: Run, source_id: str, text: str, agent: str, step: str) -> list[str]:
     """Log every configured instruction-like pattern found in data text. The text is still only data."""
-    found = [p for p in run.cfg.guardrails.injection_patterns if re.search(p, text, flags=re.IGNORECASE)]
+    view = readable(text, strip_marks=True)  # the same letters a model would read, however they were encoded
+    found = [p for p in run.cfg.guardrails.injection_patterns if re.search(p, view, flags=re.IGNORECASE)]
     if found:
         run.trace.event(type="check", name="instruction_in_data", agent=agent, step=step, verdict="flagged",
                         detail={"source_id": source_id, "patterns": found})

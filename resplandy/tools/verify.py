@@ -15,7 +15,7 @@ from third_party.research_tools.lay_abstract import _numbers
 
 from .. import prompts
 from ..config import Config
-from ..harness import Run, wrap_data
+from ..harness import Run, readable, wrap_data
 from ..llm import complete_json
 from ..schemas import Paper
 from . import http
@@ -24,32 +24,53 @@ CROSSREF_URL = "https://api.crossref.org/works/"
 _DOI = re.compile(r"^10\.\d{4,9}/\S+$")
 _ARXIV = re.compile(r"^(\d{4}\.\d{4,5}|[a-z\-]+(?:\.[A-Z]{2})?/\d{7})(v\d+)?$", re.IGNORECASE)
 _HYPHENS = re.compile("[-‐-―]")
-_INVISIBLE = {"Cc", "Cf", "Co", "Cn", "Cs", "Mn", "Me"}  # Unicode categories a reader cannot see
+_SUPERSCRIPTS = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻"
 
 
 # ---- quotes and numbers ------------------------------------------------------
+def _exponents(text: str) -> str:
+    """Write a run of superscript digits as ^digits, so that 10⁵ can never be read as 105."""
+    return re.sub(f"[{_SUPERSCRIPTS}]+",
+                  lambda run: "^" + unicodedata.normalize("NFKC", run.group(0)).replace("−", "-"), text)
+
+
 def _squash(text: str) -> tuple[str, list[int]]:
-    """Letters and digits only, lower case, ligatures split, decimal points kept; with the original positions."""
-    stream = [(char, position) for position, original in enumerate(text)
-              for char in unicodedata.normalize("NFKC", original).lower()]
+    """Letters and digits only, lower case, in NFKC, with the original positions.
+
+    Three things besides letters and digits are kept, because they change a number: a decimal point between
+    digits, the ^ of an exponent (typed, or made from superscript digits) and the sign right after it.
+    """
+    stream: list[tuple[str, int]] = []
+    in_exponent = False
+    for position, original in enumerate(text):
+        if original in _SUPERSCRIPTS and not in_exponent:
+            stream.append(("^", position))
+        in_exponent = original in _SUPERSCRIPTS
+        for char in unicodedata.normalize("NFKC", original).lower():
+            stream.append(("-" if char == "−" else char, position))
     kept = []
     for i, (char, position) in enumerate(stream):
+        before = stream[i - 1][0] if i else ""
+        after = stream[i + 1][0] if i + 1 < len(stream) else ""
         if char.isalnum():
             kept.append((char, position))
-        elif char in ".," and 0 < i < len(stream) - 1 and stream[i - 1][0].isdigit() and stream[i + 1][0].isdigit():
+        elif char in ".," and before.isdigit() and after.isdigit():
             kept.append((".", position))
+        elif char == "^" and (after.isdigit() or after in ("+", "-")):
+            kept.append(("^", position))
+        elif char in "+-" and before == "^" and after.isdigit():
+            kept.append((char, position))
     return "".join(char for char, _ in kept), [position for _, position in kept]
 
 
 def _visible(text: str) -> str:
-    """Text as a reader sees it: line-break hyphens joined, single spaces, and no invisible characters.
+    """Text as a reader sees it, in the same normal form the quote check compared (NFKC).
 
-    Format, control, private-use, unassigned and stray combining characters are dropped, so zero-width
-    characters, bidi controls and Unicode tag characters in a paper can never ride along to the judge.
+    Line-break hyphens are joined, exponents are written ^n, full-width and styled letters become plain ones,
+    and control, format, private-use and unassigned characters are dropped, so zero-width characters, bidi
+    controls and Unicode tag characters in a paper can never ride along to the judge.
     """
-    text = unicodedata.normalize("NFC", re.sub(r"-\s*\n\s*", "", text))
-    seen = (" " if char.isspace() else char for char in text)
-    return " ".join("".join(char for char in seen if unicodedata.category(char) not in _INVISIBLE).split())
+    return readable(_exponents(re.sub(r"-\s*\n\s*", "", text)))
 
 
 def check_quote(quote: str, source_text: str, *, min_score: float) -> dict:
@@ -87,7 +108,7 @@ def check_quote(quote: str, source_text: str, *, min_score: float) -> dict:
                                   "found, with stray letters in the source")
             else:
                 extra, in_a_row = extra + 1, in_a_row + 1
-                if extra > spare or in_a_row > 1 or source[i].isdigit() or source[i] == ".":
+                if extra > spare or in_a_row > 1 or source[i].isdigit() or source[i] in ".^+-":
                     break
     block = SequenceMatcher(None, wanted, source, autojunk=False).find_longest_match(0, len(wanted), 0, len(source))
     begin = max(0, block.b - block.a)
@@ -97,8 +118,8 @@ def check_quote(quote: str, source_text: str, *, min_score: float) -> dict:
 
 def check_numbers(claim: str, source_text: str) -> list[str]:
     """Numbers in the claim that are not in the source text."""
-    def numbers(text: str) -> set[str]:
-        return _numbers(unicodedata.normalize("NFKC", text))
+    def numbers(text: str) -> set[str]:  # CO₂ counts as CO2; 10⁵ counts as 10 and 5, never as 105
+        return _numbers(unicodedata.normalize("NFKC", _exponents(text)))
 
     return sorted(numbers(claim) - numbers(source_text))
 
