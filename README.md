@@ -117,6 +117,15 @@ examples/traces/        passed and failed runs
 third_party/            Tutorial 3's research_tools and literature-review skill (MIT), unchanged
 ```
 
+## Team
+
+| Name | Institution |
+| --- | --- |
+| Anthony Pembere | JOOUST, Kenya; MIDAS, University of Michigan |
+| Fan Zhang | Honda Research Institute EU, Germany |
+| Verrah Otiende | MIDAS, University of Michigan; SST, USIU-Africa |
+| Rakchat Klinkla | Rajamangala University of Technology Isan, Thailand |
+
 ## Licence
 
 MIT: see `LICENSE`. `third_party/` is from the AgentForge workshop and keeps its own MIT licences, one in each folder.
