@@ -4,4 +4,4 @@ M2,"Paper folder and inventory, literature workflow, verification, Literature pa
 M3,"Gaps, Planner, Reviewer, solver, pages",Rakchat,build,0.5,2026-11-19T12:20:00+08:00,2026-11-19T12:32:00+08:00,replanned at 11:25 to M3 lite (first estimate 1.25 h); solver built by a subagent 11:48-12:05; one Reviewer round
 M4,Tracker and check-in page,Rakchat,build,0.25,2026-11-19T11:48:00+08:00,2026-11-19T12:10:00+08:00,replanned at 11:25 to M4 lite (first estimate 0.75 h); built by a subagent in parallel with M2; no comment triage or notify
 M6,Trace export (evaluation suites L J and R cut),Evaluator,eval,0.25,2026-11-19T12:35:00+08:00,2026-11-19T12:50:00+08:00,3 passed and 3 failed traces exported; replanned at 11:25 (first estimate 0.75 h); only Suite T runs. M5 (learning loop; first estimate 0.75 h) was cut at 11:25 and has no row
-M7,"README, report, slides, rehearsal",Storyteller,write,0.42,,,replanned at 11:25 (first estimate 0.75 h)
+M7,"README, report, slides, rehearsal",Storyteller,write,0.42,2026-11-19T12:40:00+08:00,,replanned at 11:25 (first estimate 0.75 h); README and report written by 12:51; live walk through the app at 13:16; replay rehearsal from 13:44

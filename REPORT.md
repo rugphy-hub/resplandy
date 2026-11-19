@@ -14,8 +14,9 @@ Every run used three review PDFs from the domain expert as its paper folder, plu
 | 12:38 | Demo question, at most 12 claims | 11 of 12 | 8 | 24 | $0.15 |
 | 12:40 | MOFs and zeolites in humid flue gas | 9 of 11 | 8 | 22 | $0.21 |
 | 12:44 | Machine learning to screen sorbents for direct air capture | 12 of 12 | 10 | 26 | $0.20 |
+| 13:16 | Demo question through the app, steps 1 to 5 | 11 of 11 | 6 | 27 | $0.31 |
 
-"Verified" means every code check passed and the judge said yes. No person checked these claims, and the judge is not calibrated. In the last three runs, 32 of 35 claims were verified and 26 needed their one rewrite. Their traces, and three failed runs, are in `examples/traces/`.
+"Verified" means every code check passed and the judge said yes. No person checked these claims, and the judge is not calibrated. In the three runs from 12:38 to 12:44, 32 of 35 claims were verified and 26 needed their one rewrite. The 13:16 run went on through the gates: three candidate gaps with a receipt for the first, four claims confirmed by a person, a plan of 22 tasks (132 raw hours) after the Reviewer raised two missing steps and the Planner accepted both, and a schedule. Traces of passed and failed runs are in `examples/traces/`.
 
 ## Insights
 
@@ -43,7 +44,7 @@ Every run used three review PDFs from the domain expert as its paper folder, plu
 - **The judge is not calibrated.** Suite J (human labels and seeded claims) was not built, so we know neither how often the judge passes a bad claim nor how often it rejects a good one. Every run is in `calibrate` mode: a person confirms the claims behind a gap before the Planner may use them.
 - **No Suite L or R**: no recall against the gold set, and no measure of whether the Reviewer beats a Planner's self-check. Only Suite T, the Tracker's arithmetic, runs.
 - **No learning loop**, no DOI match for library files, one Reviewer round, and a receipt for the first gap only.
-- **Steps 4 and 5 had not met a live model when this was written.** Gaps, the plan, the critique and the schedule pass offline tests with a scripted LLM. The numbers above are for steps 1 to 3.
+- **Steps 4 and 5 ran live once.** Gaps, the plan, the critique and the schedule have offline tests and that one run at 13:16. One run shows that the path works, not how good its gaps or its plan are.
 - **The two sub-questions are the builder's**, not the domain expert's, and he has not reviewed the evidence-grading rubric.
 
 ## Open questions
