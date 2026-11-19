@@ -64,11 +64,12 @@ class Budget:
 class Trace:
     """Appends one JSON line per event to traces/<date>/<run_id>.jsonl. Lines are never rewritten."""
 
-    def __init__(self, run_id: str, root: Path, timezone: str) -> None:
+    def __init__(self, run_id: str, root: Path, timezone: str, path: Path | None = None) -> None:
         self.run_id, self._zone, self._next_id = run_id, ZoneInfo(timezone), 1
-        self.path = Path(root) / datetime.now(self._zone).date().isoformat() / f"{run_id}.jsonl"
+        self.path = Path(path or Path(root) / datetime.now(self._zone).date().isoformat() / f"{run_id}.jsonl")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.touch()
+        self._next_id = len(self.read()) + 1  # a run reopened after a human gate carries on in the same file
 
     def event(self, *, type: str, name: str, agent: str = "harness", step: str = "", inp: Any = None,
               out: Any = None, input_digest: str | None = None, output_digest: str | None = None,
@@ -114,6 +115,14 @@ def start_run(cfg: Config, kind: str = "full", client: Any = None) -> Run:
     trace = Trace(run_id, cfg.paths.traces, cfg.timezone)
     budget = Budget(cfg.limits.max_llm_calls_per_run, cfg.limits.max_cost_usd_per_run)
     return Run(run_id, cfg, trace, budget, kind, client)
+
+
+def resume_run(cfg: Config, run_id: str, trace_path: Path | str, calls: int, cost_usd: float,
+               kind: str = "full", client: Any = None) -> Run:
+    """Reopen a run after a human gate: the same trace file, and the event ids and the budget carry on."""
+    budget = Budget(cfg.limits.max_llm_calls_per_run, cfg.limits.max_cost_usd_per_run)
+    budget.calls, budget.cost_usd = calls, cost_usd
+    return Run(run_id, cfg, Trace(run_id, cfg.paths.traces, cfg.timezone, Path(trace_path)), budget, kind, client)
 
 
 def wrap_data(source_id: str, text: str) -> str:

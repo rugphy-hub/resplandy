@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import logging
 import re
 from pathlib import Path
 from typing import Literal
@@ -23,6 +24,7 @@ from . import http
 
 AGENT = "lit_reviewer"
 SOURCE_NAMES = {"OpenAlex": "openalex", "arXiv": "arxiv", "Europe PMC": "europepmc"}
+logging.getLogger("pypdf").setLevel(logging.ERROR)  # font warnings from PDFs would flood the console
 
 
 # ---- online search ---------------------------------------------------------
@@ -40,9 +42,15 @@ def paper_id(doi: str, url: str, title: str) -> str:
 
 def search_literature(run: Run, query: str, limit: int | None = None, year_from: int | None = None) -> list[Paper]:
     """Search OpenAlex, arXiv and Europe PMC for one query and return the merged papers, each with an id."""
+    return search_with_counts(run, query, limit, year_from)[0]
+
+
+def search_with_counts(run: Run, query: str, limit: int | None = None,
+                       year_from: int | None = None) -> tuple[list[Paper], dict[str, int]]:
+    """The same search, plus how many records each database returned (at most the limit, not its total)."""
     cfg = run.cfg
     limit = min(limit or cfg.limits.max_papers_per_search, cfg.limits.max_papers_per_search)
-    results, notes = [], []
+    results, notes, counts = [], [], {}
     for name, search in online.SOURCES.items():
         def fetch(name: str = name, search=search) -> list[dict]:
             key = cfg.secrets.get("OPENALEX_API_KEY") if name == "OpenAlex" else ""
@@ -55,6 +63,7 @@ def search_literature(run: Run, query: str, limit: int | None = None, year_from:
             records, _ = http.cached(cfg, "search", {"source": name, "query": query, "limit": limit,
                                                      "year_from": year_from}, fetch)
             results.append([online.Paper(**record) for record in records])
+            counts[name] = len(records)
         except http.HttpReplayMiss:
             notes.append(f"{name}: not in the replay cache")
         except Exception as err:
@@ -67,7 +76,7 @@ def search_literature(run: Run, query: str, limit: int | None = None, year_from:
     run.trace.event(type="tool_call", name="search_literature", agent=AGENT, step="literature",
                     inp={"query": query, "limit": limit, "year_from": year_from}, out=[p.id for p in papers],
                     detail={"papers": len(papers), "limit": limit, "notes": notes})
-    return papers
+    return papers, counts
 
 
 def reference(paper: Paper) -> str:

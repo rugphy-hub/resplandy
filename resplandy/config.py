@@ -89,8 +89,20 @@ class Limits(_Section):
     max_library_pages_per_run: int
     max_sources_per_run: int
     max_gaps: int
+    receipt_positive_queries: int
+    receipt_negative_queries: int
+    receipt_nearest_papers: int
     reviewer_rounds: int
     repair_rounds: int
+
+
+class Planning(_Section):
+    max_task_hours: float
+    default_owner: str
+
+
+class Scheduler(_Section):
+    days_after_deadline: int
 
 
 class JudgeGate(_Section):
@@ -136,6 +148,7 @@ class Apis(_Section):
 
 class Guardrails(_Section):
     injection_patterns: list[str]
+    gap_overclaims: list[str]
 
 
 class Paths(_Section):
@@ -151,6 +164,8 @@ class Config(_Section):
     models: Models
     openrouter: OpenRouter
     limits: Limits
+    planning: Planning
+    scheduler: Scheduler
     verification: Verification
     audit: dict = {}      # audit rounds and lessons are designed but not built; their numbers stay in config.yaml
     lessons: dict = {}

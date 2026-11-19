@@ -59,6 +59,16 @@ Also agreed: every timestamp we write, in traces and in `data/task_log.csv`, car
 - **Labels.** Each claim carries the model's `basis` (measured, simulated, review, unclear) and `grade` (strong, moderate, weak) from the evidence-grading rubric. Code does not check them and the page says so.
 - **Check names in the trace and on the page:** `id_in_set`, `id_resolves`, `metadata`, `quote_found`, `numbers_in_source`, `judge_support`, and `instruction_in_data` when paper text matches a pattern in `guardrails.injection_patterns`.
 
+### Agreed for M3 (19 Nov, 12:20 +08)
+
+- **One run across the gates.** Steps 4 and 5 reopen the run that did steps 1 to 3 (`resume_run`): the same trace file, event ids that carry on, and the same budget of 40 calls. A person's choice at a gate is a `human` line in that trace.
+- **Gaps.** The model sees verified claims only, under short ids (`C1`, `C2`), and code maps them back. A gap that cites no verified claim is dropped, and so is one that matches a pattern in `guardrails.gap_overclaims` ("no one has studied"). Only the first gap gets a receipt today.
+- **Receipt.** The model writes 3 positive and 2 negative queries (a negative query uses the words papers use for missing work). Code runs them, records the records each database returned (at most 25 per query, not the database's total), and picks the 3 nearest papers by shared words. The model writes one why-not line per nearest paper.
+- **The gap gate in `calibrate` mode.** The person ticks each claim behind the gap they pick. A claim that is not ticked becomes unverified and the Planner never sees it. The tick is stored as a check of kind `human` named `gap_confirm`. It is not a judge label: the person has seen that the judge passed the claim. `mode_in_force` returns `calibrate` whatever `config.yaml` says, because no Suite J pass is stored.
+- **Planner.** The model writes raw hours; code owns the scaling by k (`scale_by_k`), and k is 1.0 until a person has finished tasks. Our own plan rules (unique ids, known dependencies, no cycle, a task of at most `planning.max_task_hours`, due dates before the deadline, only the claim ids it was given) are part of the reply's validation, so a plan that breaks one gets the same single repair round as broken JSON, and then goes to a person.
+- **Reviewer.** One round today (`limits.reviewer_rounds`). It runs on the other model family, names real task ids only, and the Planner must answer every item. A plan changes only for accepted items; each version is stored with a diff.
+- **Plan status.** `draft`, then `proposed`, then `approved` by a person. The solver sees approved plans only. It raises an error when a plan does not fit the free time of an option, so the Schedule page then shows the reason instead of three options.
+
 ## System overview
 
 The team doc shows this as a diagram, "Agents propose, code checks, you decide". The same content as text:

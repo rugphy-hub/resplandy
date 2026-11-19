@@ -46,13 +46,17 @@ def main() -> int:
     papers = {paper.id: paper for paper in result.papers}
     for claim in result.claims:
         where = "abstract" if claim.location == "abstract" else f"p. {claim.location}"
-        failed = [c for c in result.checks if c.claim_id == claim.id and not c.passed]
+        latest = {c.name: c for c in result.checks if c.claim_id == claim.id}  # a rewritten claim is checked twice
+        first_try = sorted({c.name for c in result.checks if c.claim_id == claim.id and not c.passed})
         print(f"\n[{claim.status.upper()}{', rewritten' if claim.rewritten else ''}] {claim.text}")
         print(f'  quote: "{claim.quote}"')
         if claim.paper_id in papers:
             print(f"  source: {literature.reference(papers[claim.paper_id])} ({where})")
-        for check in failed:
-            print(f"  failed {check.name}: {check.detail}")
+        for check in latest.values():
+            if not check.passed:
+                print(f"  failed {check.name}: {check.detail}")
+        if claim.rewritten and claim.status == "verified":
+            print(f"  its first version failed: {', '.join(first_try)}")
     print(f"\nTrace: {result.trace_path}")
     return 0 if result.status == "finished" else 1
 

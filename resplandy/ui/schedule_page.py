@@ -13,7 +13,6 @@ from ..harness import now
 from ..schemas import Plan, ScheduleOption
 from ..tools.scheduler import get_availability, option_end, schedule
 
-DAYS_AFTER_DEADLINE = 14  # the calendar is read this far past the deadline, so a late option can still be shown
 TIME_FORMAT = "%a %d %b %H:%M"
 
 
@@ -34,7 +33,7 @@ def render(cfg: Config, conn: sqlite3.Connection, project_id: str, plan: Plan | 
     deadline = deadline.replace(tzinfo=zone) if deadline.tzinfo is None else deadline.astimezone(zone)
     tomorrow = datetime.combine(now(cfg).date() + timedelta(days=1), time.min, tzinfo=zone)
     try:
-        availability = get_availability(tomorrow, deadline + timedelta(days=DAYS_AFTER_DEADLINE))
+        availability = get_availability(tomorrow, deadline + timedelta(days=cfg.scheduler.days_after_deadline))
         options = schedule(plan, availability, deadline)
     except ValueError as problem:
         st.error(f"The solver could not build a schedule. {problem}")

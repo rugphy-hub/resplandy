@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from itertools import zip_longest
 from pathlib import Path
 from typing import Any
@@ -14,10 +14,10 @@ from third_party.research_tools.lay_abstract import _numbers
 
 from . import state
 from .config import Config, ConfigError
-from .harness import BudgetExceeded, Run, flag_instructions, now, start_run
+from .harness import BudgetExceeded, Run, Trace, flag_instructions, now, resume_run, start_run
 from .llm import LLMError, NeedsPerson, ReplayMiss
-from .schemas import Check, Claim, LibraryFile, Paper, Project, Source
-from .tools import literature, verify
+from .schemas import Check, Claim, Gap, LibraryFile, Paper, Plan, Project, Source
+from .tools import gaps, literature, planning, scheduler, verify
 
 STOPS = {BudgetExceeded: "stopped_budget", NeedsPerson: "needs_person", ReplayMiss: "replay_miss",
          LLMError: "provider_error", ConfigError: "config_error", literature.LibraryError: "folder_refused"}
@@ -221,6 +221,184 @@ def _check_claim(run: Run, claim: Claim, source: Source | None, paper_checks: li
         except (NeedsPerson, LLMError) as err:  # no verdict is not a yes
             add("judge", "judge_support", False, f"no verdict from the judge: {type(err).__name__}")
     return checks
+
+
+# ---- steps 4 and 5: gaps, the gap gate, the plan, the approval gate -------------------------------------
+@dataclass
+class StepResult:
+    """How one step after a human gate ended, and what it produced."""
+
+    status: str
+    message: str = ""
+    value: Any = None
+
+
+def mode_in_force(cfg: Config) -> str:
+    """The verification mode in force. Only a stored Suite J pass for the current judge and rubric makes it
+    "deployed". Suite J is not built, so no pass exists and the mode is calibrate whatever config.yaml says."""
+    return "calibrate"
+
+
+def _step(cfg: Config, conn: Any, run_id: str, client: Any, work: Any) -> StepResult:
+    """Reopen the run, do one step, and store how it ended. The trace, the event ids and the budget carry on."""
+    row = dict(state.rows(conn, "runs", id=run_id)[0])
+    run = resume_run(cfg, run_id, row["trace_path"], row["llm_calls"] or 0, row["cost_usd"] or 0.0, row["kind"],
+                     client)
+    result = StepResult("finished")
+    try:
+        result.value = work(run)
+    except tuple(STOPS) as err:
+        result.status = next(status for kind, status in STOPS.items() if isinstance(err, kind))
+        result.message = str(err)
+    except Exception as err:  # a bug must still leave a closed run and a trace
+        result.status, result.message = "error", f"{type(err).__name__}: {err}"
+        run.trace.event(type="error", name="crash", agent="harness", detail={"error_type": type(err).__name__})
+    state.put(conn, "runs", {**row, "status": result.status, "ended_at": now(cfg).isoformat(),
+                             "llm_calls": run.budget.calls, "cost_usd": run.budget.cost_usd,
+                             "data": result.message or row["data"]})
+    return result
+
+
+def run_gaps(cfg: Config, conn: Any, project: Project, run_id: str, client: Any = None) -> StepResult:
+    """Step 4: candidate gaps from the run's verified claims, with a search receipt for the first one."""
+
+    def work(run: Run) -> list[Gap]:
+        found = gaps.propose_gaps(run, project.goal, state.load(conn, "claims", Claim, run_id=run_id))
+        for gap in found:
+            state.put(conn, "gaps", {"id": gap.id, "project_id": project.id, "run_id": run_id, "status": gap.status},
+                      gap)
+        if found:  # receipts for the other gaps are cut today
+            first = found[0]
+            receipt, nearest = gaps.search_receipt(run, first)
+            first.receipt_id = first.id
+            state.put(conn, "receipts", {"gap_id": first.id}, receipt)
+            state.put(conn, "gaps", {"id": first.id, "project_id": project.id, "run_id": run_id,
+                                     "status": first.status}, first)
+            for paper in nearest:  # so the page cites the nearest papers from stored records
+                state.put(conn, "papers", {"project_id": project.id, "id": paper.id, "run_id": run_id,
+                                           "source": paper.source, "doi": paper.doi}, paper)
+        return found
+
+    return _step(cfg, conn, run_id, client, work)
+
+
+def choose_gap(cfg: Config, conn: Any, project: Project, run_id: str, gap_id: str, confirmed: list[str]) -> Gap:
+    """The human gate after step 4: one gap is chosen and, in calibrate mode, the claims behind it are confirmed.
+
+    The person has seen that the judge passed these claims, so a confirmation is a gate, never a judge label.
+    """
+    all_gaps = state.load(conn, "gaps", Gap, run_id=run_id)
+    chosen = next((gap for gap in all_gaps if gap.id == gap_id), None)
+    if chosen is None:
+        raise ValueError(f"Gap {gap_id!r} is not one of this run's gaps.")
+    mode = mode_in_force(cfg)
+    kept = [claim_id for claim_id in chosen.claim_ids if mode == "deployed" or claim_id in confirmed]
+    if not kept:
+        raise ValueError("Confirm at least one claim behind this gap, or pick another gap.")
+    claims = {claim.id: claim for claim in state.load(conn, "claims", Claim, run_id=run_id)}
+    if mode == "calibrate":
+        for claim_id in chosen.claim_ids:
+            passed = claim_id in kept
+            check = Check(claim_id=claim_id, kind="human", name="gap_confirm", passed=passed,
+                          detail="confirmed at the gap gate" if passed else "not confirmed at the gap gate")
+            state.put(conn, "checks", {"claim_id": claim_id, "run_id": run_id, "kind": "human",
+                                       "name": check.name, "passed": int(passed)}, check)
+            if not passed and claim_id in claims:  # a claim the person did not confirm is never used
+                claims[claim_id].status = "unverified"
+                state.put(conn, "claims", {"id": claim_id, "project_id": project.id, "run_id": run_id,
+                                           "paper_id": claims[claim_id].paper_id, "status": "unverified"},
+                          claims[claim_id])
+    for gap in all_gaps:
+        gap.status = "chosen" if gap.id == gap_id else "dropped"
+        state.put(conn, "gaps", {"id": gap.id, "project_id": project.id, "run_id": run_id, "status": gap.status}, gap)
+    row = state.rows(conn, "runs", id=run_id)[0]
+    Trace(run_id, cfg.paths.traces, cfg.timezone, Path(row["trace_path"])).event(
+        type="human", name="gap_choice", agent="person", step="gaps", verdict="chosen",
+        detail={"gap_id": gap_id, "confirmed": len(kept), "not_confirmed": len(chosen.claim_ids) - len(kept),
+                "mode": mode})
+    return chosen
+
+
+def usable_claims(cfg: Config, conn: Any, run_id: str, gap: Gap) -> list[Claim]:
+    """The claims the Planner may use: verified, behind the chosen gap and, in calibrate mode, confirmed by a person."""
+    claims = {claim.id: claim for claim in state.load(conn, "claims", Claim, run_id=run_id)}
+    behind = [claims[claim_id] for claim_id in gap.claim_ids
+              if claim_id in claims and claims[claim_id].status == "verified"]
+    if mode_in_force(cfg) == "calibrate":
+        confirmed = {row["claim_id"] for row in state.rows(conn, "checks", run_id=run_id, kind="human",
+                                                           name="gap_confirm", passed=1)}
+        behind = [claim for claim in behind if claim.id in confirmed]
+    return behind
+
+
+def _free_daytime_hours(cfg: Config, project: Project) -> float | None:
+    """Free daytime hours in the calendar from tomorrow to the deadline, for the Planner's sense of scale."""
+    if project.deadline is None:
+        return None
+    zone = now(cfg).tzinfo
+    start = datetime.combine(now(cfg).date() + timedelta(days=1), time.min, tzinfo=zone)
+    end = datetime.combine(project.deadline, time(23, 59, 59), tzinfo=zone)
+    try:
+        blocks = scheduler.get_availability(start, end)
+    except (OSError, ValueError, KeyError):
+        return None
+    return sum((block.end - block.start).total_seconds() / 3600 for block in blocks if not block.evening)
+
+
+def run_plan(cfg: Config, conn: Any, project: Project, run_id: str, client: Any = None) -> StepResult:
+    """Step 5: the Planner drafts, the Reviewer critiques, the Planner answers. The result waits for approval."""
+    gap = next((g for g in state.load(conn, "gaps", Gap, run_id=run_id) if g.status == "chosen"), None)
+    if gap is None:
+        raise ValueError("Choose a gap first: the Planner works only on the gap a person picked.")
+    claims = usable_claims(cfg, conn, run_id, gap)
+    if not claims:
+        raise ValueError("No confirmed claim is behind the chosen gap, so there is nothing to plan from.")
+    limits = planning.Constraints(deadline=project.deadline, today=now(cfg).date(), owner=cfg.planning.default_owner,
+                                  max_task_hours=cfg.planning.max_task_hours,
+                                  free_hours=_free_daytime_hours(cfg, project), k=1.0)
+
+    def save(plan: Plan, status: str, diff: str = "") -> None:
+        state.put(conn, "plans", {"id": plan.id, "version": plan.version, "project_id": project.id,
+                                  "status": status, "diff": diff}, plan)
+
+    def work(run: Run) -> Plan:
+        plan = planning.draft_plan(run, project.goal, claims, gap, limits)
+        save(plan, "draft")
+        diff = ""
+        for round_number in range(1, cfg.limits.reviewer_rounds + 1):
+            critique = planning.critique_plan(run, plan, claims, {"k": limits.k}, round_number)
+            critique, revised = planning.answer_critique(run, plan, critique, claims, limits)
+            state.put(conn, "critiques", {"plan_id": plan.id, "plan_version": plan.version,
+                                          "round": round_number}, critique)
+            if revised is plan:  # no issues, or nothing accepted
+                break
+            diff = planning.plan_diff(plan, revised)
+            save(revised, "draft", diff)
+            plan = revised
+        save(plan, "proposed", diff)  # nothing is scheduled until a person approves
+        return plan
+
+    return _step(cfg, conn, run_id, client, work)
+
+
+def approve_plan(cfg: Config, conn: Any, project: Project, run_id: str, plan_id: str, version: int) -> Plan:
+    """The human gate after step 5: a person approves one version of the plan."""
+    rows = state.rows(conn, "plans", id=plan_id, version=version, project_id=project.id)
+    if not rows:
+        raise ValueError(f"Plan {plan_id!r} version {version} does not exist for this study.")
+    plan = Plan.model_validate_json(rows[0]["data"])
+    state.put(conn, "plans", {**dict(rows[0]), "status": "approved"})
+    row = state.rows(conn, "runs", id=run_id)[0]
+    Trace(run_id, cfg.paths.traces, cfg.timezone, Path(row["trace_path"])).event(
+        type="human", name="plan_approval", agent="person", step="plan", verdict="approved",
+        detail={"plan_id": plan_id, "version": version, "tasks": len(plan.tasks)})
+    return plan
+
+
+def approved_plan(conn: Any, project_id: str) -> Plan | None:
+    """The newest plan a person approved for this study, if there is one."""
+    rows = state.rows(conn, "plans", project_id=project_id, status="approved")
+    return Plan.model_validate_json(rows[-1]["data"]) if rows else None
 
 
 def _save_run(conn: Any, run: Run, result: LiteratureResult, started: str, ended: str | None) -> None:

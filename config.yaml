@@ -31,8 +31,18 @@ limits:
   max_library_pages_per_run: 6               # full pages of library files given to the summariser
   max_sources_per_run: 16                    # library pages plus abstracts given to the summariser
   max_gaps: 3
-  reviewer_rounds: 2
+  receipt_positive_queries: 3                # per search receipt
+  receipt_negative_queries: 2
+  receipt_nearest_papers: 3
+  reviewer_rounds: 1                         # the design says 2; one round is built today
   repair_rounds: 1
+
+planning:
+  max_task_hours: 8                          # "a task of one day or less"
+  default_owner: me
+
+scheduler:
+  days_after_deadline: 14                    # the calendar is read this far past the deadline, to show a late option
 
 verification:
   mode: calibrate                            # stays calibrate; code never rewrites this file. The mode in force is
@@ -87,6 +97,13 @@ guardrails:
     - "you are now"
     - "system prompt"
     - "new instructions:"
+  gap_overclaims:                            # a gap is a candidate, never a claim that nothing exists
+    - "no one has"
+    - "nobody has"
+    - "has never been"
+    - "have never been"
+    - "has not been studied"
+    - "no (previous |prior |existing )?(study|studies|work|research) (has|have|exists?)"
 
 paths:
   database: data/resplandy.sqlite

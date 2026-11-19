@@ -1,9 +1,26 @@
+import copy
+import json
 import re
+from datetime import date
+from pathlib import Path
 
 import pytest
 
 from resplandy import state, workflow
-from resplandy.schemas import Check, Claim, Paper
+from resplandy.schemas import Check, Claim, Critique, Gap, Paper, Receipt
+
+PLAN = {
+    "milestones": [{"id": "M1", "name": "TEST MILESTONE", "done_when": "the test table exists", "due": "2026-12-10"}],
+    "tasks": [
+        {"id": "T1", "milestone_id": "M1", "name": "TEST TASK A", "type": "read", "hours": 4, "depends_on": [],
+         "priority": "must", "claim_ids": ["C1"]},
+        {"id": "T2", "milestone_id": "M1", "name": "TEST TASK B", "type": "analysis", "hours": 6,
+         "depends_on": ["T1"], "priority": "should", "claim_ids": []},
+    ],
+}
+PLAN_V2 = copy.deepcopy(PLAN)
+PLAN_V2["tasks"].append({"id": "T3", "milestone_id": "M1", "name": "TEST TASK C", "type": "experiment", "hours": 8,
+                         "depends_on": ["T1"], "priority": "must", "claim_ids": []})
 from resplandy.tools import http, literature, verify
 from resplandy.tools.literature import online
 
@@ -60,11 +77,73 @@ def world(cfg, lib_folder, scripted, monkeypatch):
         Queries={"queries": ["testium sorbent humid capacity", "sorbent uptake dry gas"]},
         Screening={"items": [{"paper_id": "doi:10.0000/test.b", "relevance": 2, "reason": "test"},
                              {"paper_id": "doi:10.0000/test.d", "relevance": 0, "reason": "test"}]},
-        ClaimDrafts=DRAFTS, JudgeVerdict=judge, Rewrites=rewrites)
+        ClaimDrafts=DRAFTS, JudgeVerdict=judge, Rewrites=rewrites,
+        GapDrafts={"gaps": [
+            {"statement": "A candidate gap: humid test data for Testium sorbents beyond 100 cycles is thin.",
+             "claim_ids": ["C1", "C2"]},
+            {"statement": "A candidate gap: the part test sites play is only hinted at.", "claim_ids": ["C2"]}]},
+        ReceiptQueries={"positive": ["testium humid cycling", "testium long cycling", "sorbent humid cycling"],
+                        "negative": ["testium humid cycling remains unexplored", "lack of data testium cycling"]},
+        WhyNots={"items": [{"paper_id": "doi:10.0000/test.b", "why_not": "It reports dry test gas only."}]},
+        PlanDraft=PLAN, CritiqueDraft={"items": [{
+            "type": "missing_step", "severity": "high", "task_ids": ["T2"],
+            "evidence": "The plan analyses test data before any exists.", "fix": "Add a task that collects it."}]},
+        CritiqueAnswers={"answers": [{"item_id": "K1", "answer": "accept", "reason": "Agreed."}], "plan": PLAN_V2})
     conn = state.connect(cfg.paths.database)
     state.init_db(conn)
-    project = workflow.create_project(conn, cfg, "TEST QUESTION about made-up sorbents?", folder=lib_folder)
+    project = workflow.create_project(conn, cfg, "TEST QUESTION about made-up sorbents?", date(2026, 12, 17),
+                                      lib_folder)
     return cfg, conn, project, client
+
+
+def test_gaps_the_gap_gate_the_plan_and_the_approval_gate(world):
+    cfg, conn, project, client = world
+    run_id = workflow.run_literature(cfg, conn, project, client=client).run_id
+    cfg.verification.mode = "deployed"                      # typed in by hand: it must change nothing
+    assert workflow.mode_in_force(cfg) == "calibrate"
+
+    step = workflow.run_gaps(cfg, conn, project, run_id, client=client)
+    assert step.status == "finished" and len(step.value) == 2
+    first, second = step.value
+    c1, c4 = first.claim_ids
+    assert second.claim_ids == [c4] and first.receipt_id == first.id and second.receipt_id is None
+    receipt = state.load(conn, "receipts", Receipt, gap_id=first.id)[0]
+    assert len(receipt.queries) == 5 and receipt.nearest[0].paper_id == "doi:10.0000/test.b"
+
+    with pytest.raises(ValueError, match="Choose a gap"):   # nothing moves before a person picks a gap
+        workflow.run_plan(cfg, conn, project, run_id, client=client)
+    with pytest.raises(ValueError, match="Confirm at least one"):
+        workflow.choose_gap(cfg, conn, project, run_id, first.id, confirmed=[])
+    workflow.choose_gap(cfg, conn, project, run_id, first.id, confirmed=[c1])
+    statuses = {g.id: g.status for g in state.load(conn, "gaps", Gap, run_id=run_id)}
+    assert statuses == {first.id: "chosen", second.id: "dropped"}
+    claims = {c.id: c for c in state.load(conn, "claims", Claim, run_id=run_id)}
+    assert claims[c1].status == "verified" and claims[c4].status == "unverified"   # not confirmed, so never used
+
+    planned = workflow.run_plan(cfg, conn, project, run_id, client=client)
+    assert planned.status == "finished" and planned.value.version == 2
+    drafted = next(r for r in client.requests if r["response_format"]["json_schema"]["name"] == "PlanDraft")
+    prompt = drafted["messages"][-1]["content"]
+    assert claims[c1].text in prompt and claims[c4].text not in prompt
+    reviewed = next(r for r in client.requests if r["response_format"]["json_schema"]["name"] == "CritiqueDraft")
+    assert reviewed["model"] == cfg.models.reviewer and drafted["model"] == cfg.models.writer
+
+    rows = state.rows(conn, "plans", project_id=project.id)
+    assert [(r["version"], r["status"]) for r in rows] == [(1, "draft"), (2, "proposed")]
+    assert "+ T3" in rows[1]["diff"] and workflow.approved_plan(conn, project.id) is None
+    critique = state.load(conn, "critiques", Critique, plan_id=planned.value.id)[0]
+    assert [(i.id, i.answer) for i in critique.items] == [("K1", "accept")]
+
+    approved = workflow.approve_plan(cfg, conn, project, run_id, planned.value.id, 2)
+    assert workflow.approved_plan(conn, project.id) == approved and len(approved.tasks) == 3
+    assert approved.tasks[0].claim_ids == [c1]
+
+    run = state.rows(conn, "runs", id=run_id)[0]
+    assert run["llm_calls"] == 13 and run["status"] == "finished"   # one run, one budget, across the gates
+    trace = [json.loads(line) for line in Path(run["trace_path"]).read_text(encoding="utf-8").splitlines()]
+    assert [e["event_id"] for e in trace] == list(range(1, len(trace) + 1))
+    assert [e["name"] for e in trace if e["type"] == "human"] == ["gap_choice", "plan_approval"]
+    assert {e["agent"] for e in trace if e["type"] == "llm_call"} == {"lit_reviewer", "judge", "planner", "reviewer"}
 
 
 def test_a_literature_run_verifies_rewrites_and_fails_closed(world, lib_folder):

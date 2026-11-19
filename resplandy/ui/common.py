@@ -26,6 +26,12 @@ def get_conn(cfg: Config) -> sqlite3.Connection:
     return conn
 
 
+def latest_run(conn: sqlite3.Connection, project_id: str) -> sqlite3.Row | None:
+    """The newest run of a study, if it has one."""
+    runs = state.rows(conn, "runs", project_id=project_id)
+    return runs[-1] if runs else None
+
+
 def pick_project(conn: sqlite3.Connection) -> Project | None:
     """Let the person pick a study, newest first; the pick is remembered across pages."""
     projects = list(reversed(state.load(conn, "projects", Project)))
