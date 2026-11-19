@@ -1,0 +1,8 @@
+# Settings for `streamlit run app.py`. Open http://localhost:8501 yourself: the server does not open a browser.
+
+[server]
+headless = true            # no first-run email prompt
+address = "localhost"      # this machine only: the app can spend API credit, so it is not served to the network
+
+[browser]
+gatherUsageStats = false   # send no usage statistics to Streamlit

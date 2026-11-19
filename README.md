@@ -62,6 +62,8 @@ python -m resplandy.llm --ping       # one reply from each model; spends a littl
 streamlit run app.py                 # the app: Study, Literature, Gaps, Plan, Schedule, Tracker
 ```
 
+Then open http://localhost:8501. The server listens on this machine only and opens no browser (`.streamlit/config.toml`), because a run started from the app spends API credit.
+
 A scripted run of steps 1 to 3, which spends API credit (about $0.15 to $0.25 for the demo question):
 
 ```bash
