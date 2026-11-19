@@ -296,16 +296,18 @@ def summarise_with_quotes(run: Run, question: str, sources: list[Source]) -> lis
 
 def rewrite_claims(run: Run, question: str, failed: list[tuple[Claim, list[Check], Source]]) -> dict[str, Rewrite]:
     """Give the writer one chance to fix the claims that failed a check, with the failed checks and the source."""
+    # The prompt shows "c3", not the stored id: a stored id holds the run id, which would make this prompt, and
+    # so its cache key, different in every run, and a replay could never find the answer.
+    short = {claim.id.rsplit("-", 1)[-1]: claim for claim, _, _ in failed}
     parts = []
-    for claim, checks, source in failed:
+    for (short_id, claim), (_, checks, source) in zip(short.items(), failed):
         why = "; ".join(f"{c.name} ({c.detail})" for c in checks if not c.passed)
-        parts.append(f'<claim id="{claim.id}">\ntext: {claim.text}\nquote: {claim.quote}\nfailed: {why}\n</claim>\n'
+        parts.append(f'<claim id="{short_id}">\ntext: {claim.text}\nquote: {claim.quote}\nfailed: {why}\n</claim>\n'
                      + wrap_data(source.id, source.text))
     task = (f"Research question: {question}\n\nThe claims below failed a check. Each one is followed by its "
             "source. Rewrite each claim so that it passes: copy the quote character for character from the "
             "source, use only numbers that are in the source, and keep the source's level of certainty. "
             "If the source does not support a claim at all, leave that claim out.\n\n" + "\n\n".join(parts))
     reply = complete_json("writer", _messages(task), Rewrites, run=run, agent=AGENT, step="rewrite")
-    given = {claim.id for claim, _, _ in failed}
-    _dropped_ids(run, "rewrite", sum(item.claim_id not in given for item in reply.claims))
-    return {item.claim_id: item for item in reply.claims if item.claim_id in given}
+    _dropped_ids(run, "rewrite", sum(item.claim_id not in short for item in reply.claims))
+    return {short[item.claim_id].id: item for item in reply.claims if item.claim_id in short}

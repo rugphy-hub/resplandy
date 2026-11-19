@@ -35,7 +35,7 @@ Every run used three review PDFs from the domain expert as its paper folder, plu
 ## Challenges
 
 - **Budget.** The judge is called once per claim and again after a rewrite, so 18 claims used 31 of a run's 40 LLM calls. We lowered the cap to 12 claims to leave room for gaps and the plan.
-- **Caching against evaluation.** A cache keyed by model and prompt gives every trial the same answer. The key now has a trial salt; our own tests tripped on this first.
+- **Caching cuts both ways.** A cache keyed by model and prompt gives every trial the same answer, so the key now has a trial salt. And one prompt held a claim id with the run id in it, so no later run could ever hit the cache at that step; the rehearsal with `REPLAY=1` found it 45 minutes before the demo.
 - **A fixed pipeline, not an agent loop.** The model decides inside each step, but code calls the tools in a fixed order. A loop in which the model picks its tools was designed and cut: it would have changed a pipeline that had just passed its live check.
 - **Our process slipped once.** A commit went in with a failing test, because it ran after `pytest | tail`, which hides the exit code.
 

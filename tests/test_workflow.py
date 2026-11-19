@@ -46,8 +46,8 @@ def judge(messages):
 
 
 def rewrites(messages):
-    ids = re.findall(r'<claim id="([^"]+)">', messages[-1]["content"])
-    by_number = {claim_id.rsplit("-c", 1)[1]: claim_id for claim_id in ids}
+    ids = re.findall(r'<claim id="([^"]+)">', messages[-1]["content"])   # short ids: "c3", "c4"
+    by_number = {claim_id.lstrip("c"): claim_id for claim_id in ids}
     return {"claims": [
         {"claim_id": by_number["3"], "text": "Testium-2 reached 4.1 mmol/g in dry test gas, as before.",
          "quote": "Testium-2 reached a test uptake of 2.5 mmol/g in dry test gas"},
@@ -192,6 +192,30 @@ def test_a_literature_run_verifies_rewrites_and_fails_closed(world, lib_folder):
     assert len(state.load(conn, "checks", Check, run_id=result.run_id)) == len(result.checks)
     assert sorted(p.name for p in lib_folder.rglob("*")) == before
     assert result_events
+
+
+def test_the_same_study_replays_from_the_cache_through_every_step(world):
+    cfg, conn, project, client = world
+
+    def walk():
+        result = workflow.run_literature(cfg, conn, project, client=client)
+        gap = workflow.run_gaps(cfg, conn, project, result.run_id, client=client).value[0]
+        workflow.choose_gap(cfg, conn, project, result.run_id, gap.id, confirmed=gap.claim_ids[:1])
+        planned = workflow.run_plan(cfg, conn, project, result.run_id, client=client)
+        return result, planned
+
+    live, planned = walk()
+    asked = len(client.requests)
+    prompts = " ".join(message["content"] for request in client.requests for message in request["messages"])
+    assert live.run_id not in prompts            # no prompt may hold a run id, or its cache key changes every run
+
+    cfg.replay = True                              # the rehearsal: the same study and the same choices, cache only
+    replayed, replanned = walk()
+    assert (replayed.status, replanned.status) == ("finished", "finished"), replayed.message + replanned.message
+    assert len(client.requests) == asked and replayed.run_id != live.run_id
+    assert [c.status for c in replayed.claims] == [c.status for c in live.claims]
+    same = lambda plan: [(t.id, t.name, t.hours, t.depends_on) for t in plan.tasks]  # noqa: E731
+    assert same(replanned.value) == same(planned.value) and replayed.cost_usd == 0
 
 
 def test_a_quote_that_looks_like_an_instruction_is_never_given_to_the_judge(world):
