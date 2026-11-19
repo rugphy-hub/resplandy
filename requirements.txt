@@ -1,5 +1,5 @@
 # Runtime. Floors for openai, httpx, pypdf, python-dotenv and pyyaml match Tutorial 3.
-streamlit            # UI; pin after the first install (pip freeze)
+streamlit>=1.67      # UI; built and tested on 1.67.0 (the sidebar uses options that older versions lack)
 openai>=2.0          # OpenAI SDK, pointed at OpenRouter
 pydantic>=2          # data contracts
 httpx>=0.27          # scholarly APIs, Crossref, Telegram

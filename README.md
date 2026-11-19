@@ -59,7 +59,7 @@ Python 3.10 or newer.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                 # then fill in OPENROUTER_API_KEY
-python -m pytest -q                  # offline; 147 tests
+python -m pytest -q                  # offline; 152 tests, no key needed
 python -m resplandy.llm --ping       # one reply from each model; spends a little credit
 streamlit run app.py                 # the app: Study, Literature, Gaps, Plan, Schedule, Tracker
 ```
@@ -72,7 +72,9 @@ A scripted run of steps 1 to 3, which spends API credit (about $0.15 to $0.25 fo
 python -m resplandy run --goal "<question>" --deadline 2026-12-17 --folder data/library/co2 --until verify
 ```
 
-`REPLAY=1 streamlit run app.py` serves only cached API and LLM answers, for a demo without the network. A replay hits the cache only when the question, the folder, the deadline and the choices at each gate are the same as in the run that filled it.
+`REPLAY=1 streamlit run app.py` serves only cached API and LLM answers, for a demo without the network. A replay hits the cache only when the question, the folder, the deadline and the choices at each gate are the same as in the run that filled it. The cache is not in the repository, so a fresh clone has nothing to replay: without a key you can run the tests and read `examples/traces/`; with a key, `python -m scripts.warm_demo` fills the cache with one live run.
+
+The papers are not in the repository either (publishers' copyright). On a fresh clone, clear the paper folder field on the Study page or point it at a folder of your own.
 
 Put papers (PDF, .txt, .md) in a folder and point the Study page at it. The folder is read only. Passages from these files are sent to the LLM through OpenRouter.
 
