@@ -52,7 +52,8 @@ def test_export_picks_three_passed_and_three_failed_runs(cfg, conn, tmp_path):
     assert all(json.loads(line)["event_id"] for path in out.glob("*.jsonl") for line in path.read_text().splitlines())
 
 
-@pytest.mark.parametrize("leak", ["tester@example.org", "/home/tester/papers", "sk-or-" + "v1abc"])
+@pytest.mark.parametrize("leak", [  # built from parts, so that no address or key ever stands in this file
+    "tester" + "@" + "example.org", "/home/" + "tester/papers", "sk-or-" + "v1abc"])
 def test_nothing_is_exported_when_a_trace_holds_something_private(cfg, conn, tmp_path, leak):
     make_run(cfg, conn, "TEST QUESTION A?", "finished", verified=1)
     make_run(cfg, conn, "TEST QUESTION B?", "finished", verified=1, note=leak)
