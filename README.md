@@ -120,3 +120,5 @@ third_party/            Tutorial 3's research_tools and literature-review skill 
 ## Licence
 
 MIT: see `LICENSE`. `third_party/` is from the AgentForge workshop and keeps its own MIT licences, one in each folder.
+
+The image files in `assets/brand/` (the Resplandy logo, mascot and wordmark) are not covered by the MIT licence. All rights reserved. You may use them unmodified to refer to Resplandy.

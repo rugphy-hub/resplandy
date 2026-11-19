@@ -2,6 +2,8 @@
 
 Mascot and wordmark generated with Gemini on 19 Nov 2026 and cut out by script. The original image is `resplandy-logo-original.png`.
 
+These images are not covered by the repository's MIT licence: see the Licence section of the top-level `README.md`.
+
 | File | Use |
 | --- | --- |
 | `resplandy-logo.png` | Logo with dark text, transparent background: README, slides on light backgrounds |
