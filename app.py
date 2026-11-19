@@ -2,7 +2,7 @@
 import streamlit as st
 
 from resplandy import workflow
-from resplandy.ui import common, gaps_page, literature_page, plan_page, schedule_page, study_page, tracker_page
+from resplandy.ui import common, flow, gaps_page, literature_page, plan_page, schedule_page, study_page, tracker_page
 
 
 def schedule(cfg, conn) -> None:
@@ -18,8 +18,5 @@ PAGES = {"Study": study_page.render, "Literature": literature_page.render, "Gaps
 st.set_page_config(page_title="Resplandy", layout="wide")
 cfg = common.get_cfg()
 conn = common.get_conn(cfg)
-st.sidebar.title("Resplandy")
-st.sidebar.caption("Research + planning + buddy")
-page = st.sidebar.radio("Page", list(PAGES))
-st.sidebar.caption(f"verification.mode: {cfg.verification.mode}" + ("  ·  REPLAY=1" if cfg.replay else ""))
+page = flow.sidebar(cfg, conn, list(PAGES))  # the animated map, the status of each step, Back and Next
 PAGES[page](cfg, conn)

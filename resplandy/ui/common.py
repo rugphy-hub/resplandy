@@ -32,17 +32,33 @@ def latest_run(conn: sqlite3.Connection, project_id: str) -> sqlite3.Row | None:
     return runs[-1] if runs else None
 
 
+def _studies(conn: sqlite3.Connection) -> list[Project]:
+    """The studies a person made, newest first. Runs made by scripts stay out."""
+    scripted = {row["project_id"] for row in state.rows(conn, "runs")
+                if row["kind"] in ("induced_failure", "warm_up")}
+    return [p for p in reversed(state.load(conn, "projects", Project)) if p.id not in scripted]
+
+
+def current_project_id(conn: sqlite3.Connection) -> str | None:
+    """The study the pages show: the one picked in this session, else the newest."""
+    ids = [p.id for p in _studies(conn)]
+    picked = st.session_state.get("project_id")
+    return picked if picked in ids else (ids[0] if ids else None)
+
+
+def _remember_pick() -> None:
+    st.session_state["project_id"] = st.session_state["project_choice"]
+
+
 def pick_project(conn: sqlite3.Connection) -> Project | None:
-    """Let the person pick a study, newest first; the pick is remembered across pages."""
-    induced = {row["project_id"] for row in state.rows(conn, "runs")  # runs made by scripts, not by a person
-               if row["kind"] in ("induced_failure", "warm_up")}
-    projects = [p for p in reversed(state.load(conn, "projects", Project)) if p.id not in induced]
-    if not projects:
+    """Let the person pick a study, newest first; the pick is remembered across pages and seen by the sidebar."""
+    by_id = {p.id: p for p in _studies(conn)}
+    if not by_id:
         st.info("No study yet. Start one on the Study page.")
         return None
-    ids = [p.id for p in projects]
-    current = st.session_state.get("project_id")
-    index = ids.index(current) if current in ids else 0
-    chosen = st.selectbox("Study", projects, index=index, format_func=lambda p: f"{p.goal[:90]}  ({p.id})")
-    st.session_state["project_id"] = chosen.id
-    return chosen
+    # project_id is plain session state, so it survives pages that do not draw this box; the box mirrors it.
+    st.session_state["project_id"] = current_project_id(conn)
+    st.session_state["project_choice"] = st.session_state["project_id"]
+    st.selectbox("Study", list(by_id), format_func=lambda i: f"{by_id[i].goal[:90]}  ({i})", key="project_choice",
+                 on_change=_remember_pick)
+    return by_id[st.session_state["project_id"]]
