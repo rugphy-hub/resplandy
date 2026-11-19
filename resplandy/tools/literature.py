@@ -277,7 +277,9 @@ def summarise_with_quotes(run: Run, question: str, sources: list[Source]) -> lis
             "as in the source;\n"
             "- basis: measured, simulated, review or unclear;\n"
             "- grade: strong, moderate or weak, by the evidence-grading rubric.\n"
-            "Skip a source that does not bear on the question. If no source answers it, return an empty list."
+            "Skip a source that does not bear on the question. If no source answers it, return an empty list. "
+            "Some pages hold marks such as /C01 where the PDF reader could not decode a character: never quote "
+            "a sentence that holds one."
             f"\n\n{blocks}")
     reply = complete_json("writer", _messages(task), ClaimDrafts, run=run, agent=AGENT, step="summarise")
     by_id, claims = {s.id: s for s in sources}, []

@@ -211,6 +211,20 @@ def test_a_quote_that_looks_like_an_instruction_is_never_given_to_the_judge(worl
     assert not {c.name for c in checks if not c.passed} <= workflow.REWRITABLE  # so it is never rewritten either
 
 
+def test_a_quote_with_an_undecoded_character_fails_but_may_be_rewritten(world):
+    from resplandy.harness import start_run
+    from resplandy.schemas import Source
+
+    cfg, conn, project, client = world
+    run = start_run(cfg, client=client)
+    source = Source(id="S1", paper_id="file:a.txt", location=1,
+                    text="TEST PAPER A. The made-up sorbent Testium-3 reached 5.5 mmol g/C01 at 0.15 bar.")
+    claim = Claim(id="test-c1", text="Testium-3 reached 5.5 mmol g/C01 at 0.15 bar.", paper_id="file:a.txt",
+                  location=1, source_id="S1", quote="Testium-3 reached 5.5 mmol g/C01 at 0.15 bar")
+    failed = {c.name for c in workflow._check_claim(run, claim, source, [], []) if not c.passed}
+    assert failed == {"text_decoded"} and failed <= workflow.REWRITABLE and client.requests == []
+
+
 def test_a_run_that_hits_the_budget_leaves_every_unchecked_claim_unverified(world):
     cfg, conn, project, client = world
     cfg.limits.max_llm_calls_per_run = 3  # queries, screening and claims; the first judge call is refused

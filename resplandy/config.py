@@ -148,6 +148,7 @@ class Apis(_Section):
 
 class Guardrails(_Section):
     injection_patterns: list[str]
+    undecoded_text: list[str]
     gap_overclaims: list[str]
 
 

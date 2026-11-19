@@ -25,7 +25,7 @@ limits:
   max_cost_usd_per_run: 1.0                  # with no cap (null) a live call is refused
   max_steps_per_agent: 6
   max_papers_per_search: 25
-  max_claims_per_run: 20                     # the judge is called once per claim
+  max_claims_per_run: 12                     # the judge is called once per claim; 12 leaves calls for gaps and the plan
   max_queries: 4                             # keyword queries per question
   max_library_hits_per_query: 5
   max_library_pages_per_run: 6               # full pages of library files given to the summariser
@@ -97,6 +97,8 @@ guardrails:
     - "you are now"
     - "system prompt"
     - "new instructions:"
+  undecoded_text:                            # marks pypdf leaves for a glyph it could not decode ("mmol g/C01")
+    - "/C\\d{1,3}"
   gap_overclaims:                            # a gap is a candidate, never a claim that nothing exists
     - "no one has"
     - "nobody has"

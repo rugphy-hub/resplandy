@@ -2,6 +2,7 @@
 goal in, literature, verification. Code calls the tools in a fixed order; the LLM decides only inside a step."""
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
@@ -21,7 +22,7 @@ from .tools import gaps, literature, planning, scheduler, verify
 
 STOPS = {BudgetExceeded: "stopped_budget", NeedsPerson: "needs_person", ReplayMiss: "replay_miss",
          LLMError: "provider_error", ConfigError: "config_error", literature.LibraryError: "folder_refused"}
-REWRITABLE = {"quote_found", "numbers_in_source", "judge_support"}  # what a rewrite can fix
+REWRITABLE = {"quote_found", "numbers_in_source", "judge_support", "text_decoded"}  # what a rewrite can fix
 
 
 @dataclass
@@ -209,6 +210,10 @@ def _check_claim(run: Run, claim: Claim, source: Source | None, paper_checks: li
         if flag_instructions(run, claim.id, claim.quote, "verifier", "verify"):
             add("code", "instruction_in_quote", False,
                 "the quote matches an instruction pattern, so it is not given to the judge")
+        if any(re.search(pattern, claim.quote) for pattern in run.cfg.guardrails.undecoded_text):
+            # the quote is faithful to the extracted text, but the extraction itself lost a character
+            add("code", "text_decoded", False,
+                "the quote holds a character the PDF reader could not decode; use another sentence")
     missing = verify.check_numbers(claim.text, source.text)
     add("code", "numbers_in_source", not missing,
         "not in the source: " + ", ".join(missing) if missing else "every number is in the source")
