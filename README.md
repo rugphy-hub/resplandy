@@ -124,6 +124,7 @@ third_party/            Tutorial 3's research_tools and literature-review skill 
 | Anthony Pembere | JOOUST, Kenya; MIDAS, University of Michigan |
 | Fan Zhang | Honda Research Institute EU, Germany |
 | Verrah Otiende | MIDAS, University of Michigan; SST, USIU-Africa |
+| Rosiana Natalie | University of Michigan |
 | Rakchat Klinkla | Rajamangala University of Technology Isan, Thailand |
 
 ## Licence
